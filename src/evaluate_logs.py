@@ -5,6 +5,9 @@ Independent evaluation tool: evaluates execution logs with configurable LLM mode
 Operates independently of the execution phase, allowing re-evaluation with different
 models or updated constraint descriptions.
 
+Episodes that hit max_steps without a valid final submit skip the LLM evaluator
+and receive a zero-score ``no_final_submit`` artifact (see evaluator_lib.no_final_submit).
+
 Usage:
     python evaluate_logs.py --run-dir logs/runs/my_run --evaluator-model gpt-4o
     python evaluate_logs.py --run-dir logs/runs/my_run --task-ids task1,task2 --force
@@ -18,6 +21,10 @@ from pathlib import Path
 from typing import Dict, Optional, Set
 
 from src.evaluator_lib import EvaluatorError, TaskEvaluator
+from src.evaluator_lib.no_final_submit import (
+    build_no_final_submit_result,
+    is_no_final_submit,
+)
 from src.agent_lib.data import load_dyna_jsonl
 from src.utils.client import get_client
 from src.utils.log_reader import LogReader
@@ -87,16 +94,22 @@ def evaluate_run_dir(
                 forced_eval_file.suffix + ".tmp"
             ).unlink(missing_ok=True)
 
-    try:
-        client = get_client(evaluator_model)
-    except Exception as exc:
-        print(f"EVALUATOR ERROR: initialization failed: {str(exc)[:200]}")
-        return 1
-
+    client = None
     evaluated_count = 0
     skipped_count = 0
     error_count = 0
     per_task_summary: list = []   # collected for run-level diagnostic aggregation
+
+    def _ensure_client():
+        nonlocal client
+        if client is None:
+            try:
+                client = get_client(evaluator_model)
+            except Exception as exc:
+                raise EvaluatorError(
+                    f"initialization failed: {str(exc)[:200]}"
+                ) from exc
+        return client
 
     for summary_file in summary_files:
         # New layout: <task_id>/summary.json → task_id is parent dir name
@@ -116,21 +129,24 @@ def evaluate_run_dir(
             print(f"  ⊘ {task_id}: already evaluated (use --force to re-evaluate)")
             skipped_count += 1
             continue
-        print(f"→ Evaluating {task_id}...", end=" ", flush=True)
-
         try:
             if task_id not in task_instances:
-                print(f"✗ ERROR: task {task_id} not found in dataset {dataset_path}")
+                print(f"→ Evaluating {task_id}... ✗ ERROR: task {task_id} not found in dataset {dataset_path}")
                 error_count += 1
                 continue
             task = task_instances[task_id]
+            summary = json.loads(summary_file.read_text(encoding="utf-8"))
 
-            # Create LogReader and TaskEvaluator
-            log_reader = LogReader(run_dir, task_id)
-            evaluator = TaskEvaluator(task, log_reader, client, evaluator_model, execution_date)
-
-            # Evaluate
-            evaluation_result = evaluator.evaluate()
+            if is_no_final_submit(summary):
+                print(f"→ {task_id}: no_final_submit (max_steps)...", end=" ", flush=True)
+                evaluation_result = build_no_final_submit_result(task, summary)
+            else:
+                print(f"→ Evaluating {task_id}...", end=" ", flush=True)
+                log_reader = LogReader(run_dir, task_id)
+                evaluator = TaskEvaluator(
+                    task, log_reader, _ensure_client(), evaluator_model, execution_date
+                )
+                evaluation_result = evaluator.evaluate()
 
             # Save standalone evaluation artifact (do not mutate execution summary)
             payload = {
@@ -148,12 +164,17 @@ def evaluate_run_dir(
             # Report
             is_correct = evaluation_result.get("is_correct", False)
             score = evaluation_result.get("correctness_score", 0.0)
-            status = "✓ PASS" if is_correct else "✗ FAIL"
-            print(f"{status} (score: {score:.2f})")
+            eval_status = evaluation_result.get("eval_status", "evaluated")
+            if eval_status == "no_final_submit":
+                print(f"✗ FAIL (score: {score:.2f}, no_final_submit)")
+            else:
+                status = "✓ PASS" if is_correct else "✗ FAIL"
+                print(f"{status} (score: {score:.2f})")
             per_task_summary.append({
                 "task_id": task_id,
                 "correctness_score": score,
                 "is_correct": is_correct,
+                "eval_status": eval_status,
                 "diagnostic_counts": evaluation_result.get("diagnostic_counts", {}),
             })
             evaluated_count += 1
@@ -199,6 +220,9 @@ def _write_run_summary(
     n = len(per_task)
     mean_score = sum(t["correctness_score"] for t in per_task) / n if n else 0.0
     correct_count = sum(1 for t in per_task if t["is_correct"])
+    no_final_submit_count = sum(
+        1 for t in per_task if t.get("eval_status") == "no_final_submit"
+    )
 
     label_totals: Dict[str, int] = {}
     for t in per_task:
@@ -216,6 +240,7 @@ def _write_run_summary(
         "correct_count": correct_count,
         "success_rate": (correct_count / n) if n else 0.0,
         "mean_correctness_score": mean_score,
+        "no_final_submit_count": no_final_submit_count,
         "total_constraints": total_constraints,
         "diagnostic_label_totals": label_totals,
         "diagnostic_label_rates": rates,

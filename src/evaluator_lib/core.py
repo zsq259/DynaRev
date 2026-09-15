@@ -136,6 +136,7 @@ _COMBINE: Dict[str, str] = {
     "subject_not_found":       "subject_not_found",
     "mixed_fail":              "mixed_fail",
     "not_fired":               "not_fired",
+    "no_final_submit":         "no_final_submit",           # max_steps, evaluator skipped
     # Conditional override:
     "branch_skipped":          "branch_skipped",            # constraint on inactive branch
     "conditional_unaddressed": "conditional_unaddressed",   # agent didn't address condition
