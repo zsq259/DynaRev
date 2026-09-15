@@ -1,0 +1,69 @@
+{
+  "collection": "ign_zelda_walkthrough_dynamic_goal_candidates",
+  "status": "dynamic_pilot_passed",
+  "purpose": "Reuse the proven Zelda walkthrough material while testing two natural unconditional target changes and one page-grounded conditional change.",
+  "source": {
+    "dataset": "osunlp/Online-Mind2Web",
+    "task_id": "b320c68bffc1f3c7f2a8dc9d5478fb27",
+    "original_instruction": "Find a walkthrough for the game \"The Legend of Zelda: Breath of the Wild\" on ign."
+  },
+  "tasks": {
+    "f4_om2w_b320c68b_static": "static",
+    "f4_om2w_b320c68b_additive": "additive",
+    "f4_om2w_b320c68b_override_section": "unconditional_override_section",
+    "f4_om2w_b320c68b_override_game": "unconditional_override_game",
+    "f4_om2w_b320c68b_conditional": "conditional_override"
+  },
+  "design_rationale": {
+    "override_section": "The user discovers that shrine completion is not the intended need and switches to main-story guidance within the same game.",
+    "override_game": "The user corrects a plausible same-series game mix-up while keeping the site and artifact type unchanged.",
+    "conditional": "The user prefers a dedicated full-game walkthrough when the main guide exposes one, but otherwise accepts the guide already open. The task instruction does not prescribe final-answer wording."
+  },
+  "conditional_rule": {
+    "condition_text": "The main IGN guide or Game Help page for The Legend of Zelda: Breath of the Wild contains a dedicated full-game Walkthrough section.",
+    "expected_branch_at_construction": "alternative",
+    "basis": "A Walkthrough link was visible among the guide sections during the latest Zelda run; this must be rechecked during validation."
+  },
+  "validation": {
+    "static": "previously executed",
+    "additive": "previously executed",
+    "override_section": "Qwen3.5 pilot passed: submitted at step 27, milestone fired, evaluator score 1.0",
+    "override_game": "Qwen3.5 pilot passed: submitted at step 20, milestone fired, evaluator score 1.0",
+    "conditional": "After the milestone was reduced to a revision-independent necessary stage, Qwen3.5 submitted the correct alternative Walkthrough result at step 16; evaluator score 1.0"
+  },
+  "latest_dynamic_pilot": {
+    "run_date": "2026-09-05",
+    "policy_model": "Qwen/Qwen3.5-27B",
+    "trigger_model": "deepseek-v4-flash",
+    "max_steps": 28,
+    "override_run_dir": "logs/runs/formal4_special_ign_zelda_dynamic_qwen35_20260904_retry3",
+    "conditional_run_dir": "logs/runs/formal4_special_ign_zelda_conditional_qwen35_20260905_milestone_required_stage",
+    "results": {
+      "override_section": {
+        "completion_status": "submitted",
+        "steps": 27,
+        "milestone_fired_step": 20,
+        "evaluator_score": 1.0
+      },
+      "override_game": {
+        "completion_status": "submitted",
+        "steps": 20,
+        "milestone_fired_step": 9,
+        "evaluator_score": 1.0
+      },
+      "conditional": {
+        "completion_status": "submitted",
+        "steps": 16,
+        "milestone_fired_step": 2,
+        "reached_expected_alternative_page": true,
+        "submitted": true,
+        "evaluator_score": 1.0,
+        "diagnostics": {
+          "confirmed": 3,
+          "branch_skipped": 1
+        }
+      }
+    },
+    "infrastructure_note": "An earlier conditional attempt was manually interrupted after a DeepSeek milestone-trigger response stalled while reading its body, and a later attempt exposed the former repeated-action stuck false positive. After that check was removed and the milestone was rewritten as a revision-independent necessary stage, the latest conditional pilot submitted successfully at step 16."
+  }
+}

@@ -1,0 +1,37 @@
+# ---- secrets / local env ----
+1.sh
+.env
+.env.*
+
+# ---- docs (local only) ----
+docs/
+
+# ---- data: only the Formal4 dataset goes in ----
+data/*
+!data/dyna-tasks/
+
+# ---- generated analysis artifacts ----
+reports/
+
+# ---- historical material (kept locally, not in repo) ----
+archive/
+
+# ---- run artifacts ----
+logs/
+
+# ---- vendored external repo (not part of Dyna source) ----
+miniwob-plusplus/
+
+# ---- python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# ---- tooling / editor ----
+.claude/
+.vscode/
+.idea/
+
+# ---- macOS ----
+.DS_Store

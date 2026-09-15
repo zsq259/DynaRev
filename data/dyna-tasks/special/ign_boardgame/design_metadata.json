@@ -1,0 +1,33 @@
+{
+  "collection": "ign_boardgame_dynamic_goal_family",
+  "status": "schema_validated_special_set",
+  "purpose": "The first manually designed Formal4 family, kept separate from the future benchmark release until execution and evaluator audits are complete.",
+  "source": {
+    "dataset": "osunlp/Online-Mind2Web",
+    "task_id": "aa4b5cb7114fcc138ade82b4b9716d24",
+    "original_instruction": "Find an editor's choice review with a score of 10 in the boardgame category on IGN."
+  },
+  "tasks": {
+    "f4_om2w_aa4b5cb7_static": "static",
+    "f4_om2w_aa4b5cb7_additive": "additive",
+    "f4_om2w_aa4b5cb7_override": "unconditional_override",
+    "f4_om2w_aa4b5cb7_conditional": "conditional_override"
+  },
+  "shared_constraints": [
+    "The final result is a review page on IGN",
+    "The review is marked EDITORS' CHOICE",
+    "The review is for a board game"
+  ],
+  "focal_dimension": {
+    "name": "review_score",
+    "original_value": "exactly 10",
+    "alternative_value": "9.0 to 9.9"
+  },
+  "conditional_rule": {
+    "condition_text": "The filtered IGN Editors' Choice Board review list contains fewer than 2 reviews scored exactly 10.",
+    "operator": "<",
+    "threshold": 2,
+    "unit": "reviews",
+    "expected_branch_at_last_validation": "alternative"
+  }
+}

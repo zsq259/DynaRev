@@ -1,0 +1,112 @@
+{
+  "checked_at": "2026-09-02",
+  "timezone": "Asia/Hong_Kong",
+  "status": "retest_failed_base_navigation",
+  "checks": {
+    "task_schema_valid": true,
+    "source_instruction_preserved": true,
+    "start_url_reachable": true,
+    "static_task_human_oracle_passed": true,
+    "dynamic_design_reviewed": true,
+    "runner_execution_completed": true,
+    "evaluator_counterfactual_pending": true,
+    "pilot_calibration_pending": true
+  },
+  "site_observations": {
+    "homepage": "Opening https://www.ign.com/ redirected to https://jp.ign.com/ in the validation browser.",
+    "chosen_start_url": "https://www.ign.com/reviews",
+    "chosen_start_url_result": "Stayed on the English IGN site and exposed Editors' Choice, Score Range, and Genre filters.",
+    "cookie_dialog": "A privacy consent dialog may cover the filter controls on a fresh session.",
+    "filter_labels": {
+      "editors_choice": "Editors’ Choice",
+      "score_10": "10",
+      "score_9": "9.0 - 9.9",
+      "genre": "Board"
+    }
+  },
+  "oracle": {
+    "static_result": {
+      "title": "Undaunted: Stalingrad Board Game Review",
+      "url": "https://www.ign.com/articles/undaunted-stalingrad-board-game-review",
+      "evidence": [
+        "The filtered results list showed one matching score-10 review.",
+        "The detail page showed score 10 and EDITORS' CHOICE.",
+        "The title and article text identify it as a board game review."
+      ]
+    },
+    "conditional_observation": {
+      "score_10_match_count": 1,
+      "condition": "match_count < 2",
+      "condition_value": true,
+      "expected_branch": "alternative"
+    }
+  },
+  "latest_experiment": {
+    "applies_to_current_tasks": false,
+    "superseded_reason": "After this run, the additive task was restored to the existing Formal3 decomposition. Its milestone received only a minimal semantic broadening.",
+    "run_date": "2026-09-03",
+    "run_dir": "logs/runs/formal4_special_ign_deepseek_baseline_20260903_retry1",
+    "configuration": {
+      "model": "deepseek-v4-flash",
+      "mode": "baseline",
+      "reasoning_mode": "direct",
+      "max_steps": 28,
+      "viewport_only": true
+    },
+    "runner_result": {
+      "tasks": 4,
+      "submitted": 0,
+      "milestones_fired": 0,
+      "average_steps": 26.75
+    },
+    "evaluator_result": {
+      "evaluated": 4,
+      "errors": 0,
+      "mean_score": 0.0,
+      "successes": 0
+    },
+    "interpretation": [
+      "The static task reached max_steps, so this run does not isolate dynamic-goal ability from base navigation ability.",
+      "The override task reached a qualifying initial-goal article, but the list-state-only milestone did not fire; the milestone is narrower than the semantic progress required by the task.",
+      "DeepSeek wrapped its final send_msg_to_user call in angle brackets. The runner and evaluator exact-prefix checks did not recognize the wrapper, causing the submission to be classified as terminated and its non-empty done message to be evaluated as empty."
+    ]
+  },
+  "latest_retest": {
+    "run_date": "2026-09-04",
+    "run_dir": "logs/runs/formal4_special_ign_static_additive_deepseek_20260904",
+    "applies_to_current_tasks": true,
+    "scope": [
+      "f4_om2w_aa4b5cb7_static",
+      "f4_om2w_aa4b5cb7_additive"
+    ],
+    "configuration": {
+      "model": "deepseek-v4-flash",
+      "mode": "baseline",
+      "reasoning_mode": "direct",
+      "max_steps": 28,
+      "viewport_only": true
+    },
+    "runner_result": {
+      "tasks": 2,
+      "submitted": 0,
+      "milestones_fired": 0,
+      "average_steps": 28.0
+    },
+    "evaluator_result": {
+      "evaluated": 2,
+      "errors": 0,
+      "mean_score": 0.0,
+      "successes": 0
+    },
+    "interpretation": [
+      "Static again failed before submission, so base navigation remains uncalibrated for this model and site.",
+      "The restored additive task no longer requires Editors' Choice or score filtering before its revision, but the agent still failed to display a verifiable IGN board game review list or detail page.",
+      "No angle-bracket action wrapper occurred in either retest trajectory."
+    ]
+  },
+  "known_risks": [
+    "IGN is a live site, so result counts and the expected conditional branch can change.",
+    "The set must be revalidated before a frozen experiment batch.",
+    "The milestone definitions and angle-bracket action parsing issue must be fixed before the pilot is repeated."
+  ]
+}
