@@ -1,0 +1,257 @@
+{
+  "https://bandcamp.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "Block signal detected: 'captcha'"
+  },
+  "https://doctor.webmd.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://jobs.chronicle.com": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://medicare.gov": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://new.mta.info/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://ohio.gov/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 404"
+  },
+  "https://ohiomeansjobs.ohio.gov/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 404"
+  },
+  "https://phys.org/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "Block signal detected: 'blocked'"
+  },
+  "https://raisingcanes.com/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://sourceforge.net/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://superlawyers.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://umich.edu/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://versus.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "Failed to load after 2 attempts: Page.goto: net::ERR_HTTP2_PROTOCOL_ERROR at https://versus.com/\nCall log:\nnavigating to \"https://versus.com/\", waiting until \"load\"\n"
+  },
+  "https://www.accuweather.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "Failed to load after 2 attempts: Page.goto: Timeout 30000ms exceeded.\nCall log:\nnavigating to \"https://www.accuweather.com/\", waiting until \"load\"\n"
+  },
+  "https://www.adoptapet.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.apartments.com/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.backcountry.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.bbb.org/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.bestbuy.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "Failed to load after 2 attempts: Page.goto: Timeout 30000ms exceeded.\nCall log:\nnavigating to \"https://www.bestbuy.com/\", waiting until \"load\"\n"
+  },
+  "https://www.bhphotovideo.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.carmax.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.cars.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "Failed to load after 2 attempts: Page.goto: Timeout 30000ms exceeded.\nCall log:\nnavigating to \"https://www.cars.com/\", waiting until \"load\"\n"
+  },
+  "https://www.carvana.com/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.cvs.com/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.dillards.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "Block signal detected: 'access denied'"
+  },
+  "https://www.discogs.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.disney.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.drugs.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.fandom.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.fedex.com/en-us/home.html": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "Block signal detected: 'don't have permission'"
+  },
+  "https://www.healthgrades.com/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.imdb.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "Block signal detected: '403 forbidden'"
+  },
+  "https://www.jcpenney.com/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.kaggle.com/": {
+    "accessible": false,
+    "block_reason": "Block signal detected: 'checking your browser'",
+    "old_block_reason": "Block signal detected: 'checking your browser'"
+  },
+  "https://www.kbb.com/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.landwatch.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.microcenter.com/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.nba.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "Failed to load after 2 attempts: Page.goto: Timeout 30000ms exceeded.\nCall log:\nnavigating to \"https://www.nba.com/\", waiting until \"load\"\n"
+  },
+  "https://www.petfinder.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.qatarairways.com/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.samsung.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.sec.gov/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.target.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "Block signal detected: '404'"
+  },
+  "https://www.traderjoes.com/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://www.uniqlo.com/": {
+    "accessible": false,
+    "block_reason": "Failed to load after 2 attempts: Page.goto: net::ERR_HTTP2_PROTOCOL_ERROR at https://www.uniqlo.com/\nCall log:\nnavigating to \"https://www.uniqlo.com/\", waiting until \"load\"\n",
+    "old_block_reason": "Failed to load after 2 attempts: Page.goto: Timeout 30000ms exceeded.\nCall log:\nnavigating to \"https://www.uniqlo.com/\", waiting until \"load\"\n"
+  },
+  "https://www.united.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "Failed to load after 2 attempts: Page.goto: Timeout 30000ms exceeded.\nCall log:\nnavigating to \"https://www.united.com/\", waiting until \"load\"\n"
+  },
+  "https://www.ups.com/": {
+    "accessible": false,
+    "block_reason": "Failed to load after 2 attempts: Page.goto: net::ERR_HTTP2_PROTOCOL_ERROR at https://www.ups.com/\nCall log:\nnavigating to \"https://www.ups.com/\", waiting until \"load\"\n",
+    "old_block_reason": "Failed to load after 2 attempts: Page.goto: Timeout 30000ms exceeded.\nCall log:\nnavigating to \"https://www.ups.com/\", waiting until \"load\"\n"
+  },
+  "https://www.us-appliance.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "Failed to load after 2 attempts: Page.goto: Timeout 30000ms exceeded.\nCall log:\nnavigating to \"https://www.us-appliance.com/\", waiting until \"load\"\n"
+  },
+  "https://www.wineaccess.com/": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://zara.com/us": {
+    "accessible": false,
+    "block_reason": "HTTP 403",
+    "old_block_reason": "HTTP 403"
+  },
+  "https://ziprecruiter.com/": {
+    "accessible": true,
+    "block_reason": "",
+    "old_block_reason": "HTTP 403"
+  }
+}

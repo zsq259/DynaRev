@@ -1,0 +1,221 @@
+# Switching Condition 模板库
+#
+# 用于构造 conditional override 任务时给 (A, B) replacement pair 配一条
+# page-observable switching condition。
+#
+# 每条 template 描述一个 switching dimension（与 pair 自身的 dimension 不同——
+# 这是引入的"第三维度"）。Step 3a 在生成 conditional plan 时，根据 pair 的
+# dimension 与 task scene 在此查找适配 template。
+#
+# 设计原则见 docs/conditional_override_design.md §4。
+#
+# 字段说明：
+#   - dim: switching dimension 唯一名
+#   - tier: 1=数值阈值, 2=存在性
+#   - applicable_pair_dims: 可适配的 pair.dimension 列表（按现有 replacement_pairs.json 的命名）
+#   - applicable_scenes: 可适配的 task scene
+#   - operator / default_threshold: 阈值和操作符；availability_fail 类无阈值
+#   - threshold_by_currency: 价格类按货币换算的阈值
+#   - notes: 设计说明 / 边界情况
+#
+# Step 3b LLM 拿到这些字段后自己写 condition_text（自然语言谓词），不再用模板渲染。
+#
+# Tier 3（跨实体比较）和 Tier 4（模糊语义）暂不收录。
+
+version: v1
+updated: "2026-05-06"
+
+templates:
+
+  - dim: price_diff
+    tier: 1
+    applicable_pair_dims:
+      # 可由价格 trade-off 取舍的 PREFERENCE 维度
+      - airline
+      - brand
+      - color
+      - departure_time
+      - arrival_time
+      - schedule_time
+      - room_type
+      - headphone_type
+      - screen_size
+      - storage_capacity
+      - vehicle_size
+      - model_version
+      - product_version
+      - amenities
+      - accommodation_features
+      - parking_availability
+      - wifi
+      - shipping_service
+      - shipping_timing
+      - resolution
+      - video_format
+      - display_type
+      - food_type
+    applicable_scenes:
+      - travel_booking
+      - ecommerce_shopping
+      - housing_real_estate
+      - automotive_vehicle
+      - local_services_directory
+    operator: ">"
+    default_threshold: 500
+    threshold_by_currency:
+      RMB: 500
+      USD: 50
+      EUR: 50
+      GBP: 40
+      JPY: 5000
+    notes: |
+      默认 trade-off。任何"想要 X 但 Y 也能接受"型决策都可以挂上"如果差价大就换"。
+      自指排除：pair.dimension ∈ {price, price_range, cost, ...} 时不要用此 template。
+
+  - dim: price_savings_pct
+    tier: 1
+    applicable_pair_dims:
+      # 高/低 tier pair（用户从高规格降到低规格换价格）
+      - model_version
+      - product_version
+      - brand
+      - condition  # new vs used 等
+      - room_type
+      - screen_size
+      - storage_capacity
+      - resolution
+      - course_level
+      - experience_level
+    applicable_scenes:
+      - travel_booking
+      - ecommerce_shopping
+      - automotive_vehicle
+      - housing_real_estate
+    operator: ">"
+    default_threshold: 30
+    notes: |
+      百分比型阈值。比 absolute price_diff 更适合用户消费心理"省了多少比例"。
+      只用于"高 → 低"方向的 pair，反向不自然。
+
+  - dim: rating_delta
+    tier: 1
+    applicable_pair_dims:
+      - rating
+      - rating_filter
+      - review_score
+      - event_rating
+      - condition
+      - model_version
+    applicable_scenes:
+      - travel_booking
+      - ecommerce_shopping
+      - local_services_directory
+      - automotive_vehicle
+    operator: "<"
+    default_threshold: 0.5
+    notes: |
+      评分降幅阈值。逻辑是"如果只低 0.5 星，可以接受"。
+      operator='<' 与其他 template 反向。
+
+  - dim: availability_fail
+    tier: 2
+    applicable_pair_dims:
+      # 离散属性，可能在该次运行没货 / 没此选项
+      - color
+      - size
+      - date
+      - check_in_date
+      - departure_time
+      - arrival_time
+      - schedule_time
+      - course_time
+      - room_type
+      - storage_capacity
+      - headphone_type
+      - video_format
+      - vehicle_size
+      - food_type
+      - recipe_type
+      - recipe_ingredient
+      - airline
+    applicable_scenes:
+      - ecommerce_shopping
+      - travel_booking
+      - housing_real_estate
+      - local_services_directory
+      - automotive_vehicle
+    operator: "==true"
+    default_threshold: null
+    notes: |
+      二值，不需阈值。condition_state=true 即"该选项不存在"。
+      最自然的兜底类型；几乎所有离散属性 pair 都可适配。
+
+  - dim: duration_threshold
+    tier: 1
+    applicable_pair_dims:
+      - travel_duration
+      - duration
+      - stay_duration
+      - work_duration
+      - forecast_duration
+      - course_schedule
+      - cooking_time
+      - shipping_timing
+    applicable_scenes:
+      - travel_booking
+      - ecommerce_shopping
+      - logistics_admin
+      - local_services_directory
+    operator: ">"
+    default_threshold: 6
+    unit: hours
+    notes: |
+      时长类阈值。例如"想要直飞，但如果直飞超过 6 小时，可接受转机"。
+      默认单位 hours；分钟级场景（cooking_time）阈值需调整。
+
+# NOTE: 'distance' template was removed in v1 — its anchor placeholder
+# ("the desired location") is too vague without grounding to a concrete
+# landmark from the constraints. Step 4 rejects it as ambiguous. To
+# re-enable, the template must extract an anchor from the task's i0 /
+# constraints (e.g. "Liverpool International College") and substitute
+# it into condition_text at Step 3a time.
+
+# ---------------------------------------------------------------------------
+# 不可做 conditional 的 pair dimension（gate 直接拒绝）
+# ---------------------------------------------------------------------------
+excluded_pair_dims:
+
+  - reason: "self-reference: pair.dim 与所有候选 switching_dim 同维度，无法构造非自指 condition"
+    dims:
+      - price
+      - price_range
+      - cost
+      - budget_range
+      - salary
+      - income_range
+      - rate_of_return
+      - contribution_amount
+      - transaction_fee
+      - quota
+
+  - reason: "identity / 价值观属性：trade-off 不自然，且涉及用户身份不应被金钱等条件覆盖"
+    dims:
+      - dietary_preference
+      - recipe_dietary
+      - citizenship
+      - gender
+      - age_range
+      - relationship_status
+      - employment_status
+      - education_level
+      - health_condition
+      - client_age
+
+  - reason: "管理 / 元数据维度，无 trade-off 语义"
+    dims:
+      - sort_order
+      - list_position
+      - login_requirement
+      - data_inclusion
+      - report_availability
+      - chart_data

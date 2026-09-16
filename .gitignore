@@ -9,6 +9,9 @@ docs/
 # ---- data: only the Formal4 dataset goes in ----
 data/*
 !data/dyna-tasks/
+!data/pipeline/
+!data/sources/
+!data/websites/
 
 # ---- generated analysis artifacts ----
 reports/

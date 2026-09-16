@@ -1,0 +1,2662 @@
+{
+  "ecommerce_shopping": {
+    "c317bc65a913": [
+      {
+        "dimension": "price_range",
+        "constraint_a": {
+          "text": "Price must be between 5 to 10 USD",
+          "source_task": "b64f938af842",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Price must be between 15-20 dollars",
+          "source_task": "d1970c162714",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "model_latest",
+        "constraint_a": {
+          "text": "Must be the latest model",
+          "source_task": "d71be72aa25c",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must be a previous model",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "storage_condition",
+        "constraint_a": {
+          "text": "Pizza must be frozen",
+          "source_task": "b64f938af842",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Pizza must be fresh",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "dietary_restriction",
+        "constraint_a": {
+          "text": "Pizza must be vegetarian",
+          "source_task": "b64f938af842",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Pizza must be non-vegetarian",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "rating_filter",
+        "constraint_a": {
+          "text": "Reviews must be filtered by 1-star ratings",
+          "source_task": "9bb63ad0e38d",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Reviews must be filtered by 5-star ratings",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "size",
+        "constraint_a": {
+          "text": "Size must be 16-inch",
+          "source_task": "ab6ee3b83aab",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Size must be 12-inch",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "introduction_date",
+        "constraint_a": {
+          "text": "Must be introduced in November 2023",
+          "source_task": "ab6ee3b83aab",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must be introduced in January 2023",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "number_of_lines",
+        "constraint_a": {
+          "text": "Must be for four lines",
+          "source_task": "c7c07ec10c66",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must be for two lines",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "autopay_discount",
+        "constraint_a": {
+          "text": "Autopay discounts must not be included",
+          "source_task": "c7c07ec10c66",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Autopay discounts must be included",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "video_format",
+        "constraint_a": {
+          "text": "Video format must be MP4",
+          "source_task": "c8c1ff115879",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Video format must be MOV",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "video_duration",
+        "constraint_a": {
+          "text": "Video duration must be over 20 minutes",
+          "source_task": "c8c1ff115879",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Video duration must be under 10 minutes",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "file_size",
+        "constraint_a": {
+          "text": "File size must be medium",
+          "source_task": "c8c1ff115879",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "File size must be large",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "vintage_year",
+        "constraint_a": {
+          "text": "Wine must be made in 2020",
+          "source_task": "d1970c162714",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Wine must be made in 2018",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "origin_country",
+        "constraint_a": {
+          "text": "Wine must be made in the United States",
+          "source_task": "d1970c162714",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Wine must be made in France",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      }
+    ],
+    "6419f0045e06": [
+      {
+        "dimension": "color",
+        "constraint_a": {
+          "text": "Color must be black",
+          "source_task": "824eb7bb0ef1",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Color must be blue",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "size",
+        "constraint_a": {
+          "text": "Size must be large",
+          "source_task": "824eb7bb0ef1",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Size must be medium",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "price",
+        "constraint_a": {
+          "text": "Price must be $100 or less",
+          "source_task": "644a856c3897",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Price must be within $25 to $60",
+          "source_task": "c1d6ea6f2196",
+          "generated": false
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "quantity",
+        "constraint_a": {
+          "text": "Add 5 bottles to the cart",
+          "source_task": "d1970c162714",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Add 3 bottles to the cart",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "parking_day",
+        "constraint_a": {
+          "text": "Parking must be available for next Sunday",
+          "source_task": "dd44c665cec1",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Parking must be available for next Saturday",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "parking_time",
+        "constraint_a": {
+          "text": "Parking must be available from 1:00 PM to 5:00 PM",
+          "source_task": "dd44c665cec1",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Parking must be available from 9:00 AM to 12:00 PM",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "selection_criteria",
+        "constraint_a": {
+          "text": "If multiple options are available, show the details of the one with the lowest price",
+          "source_task": "dd44c665cec1",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Discount percentage must be the highest among available options",
+          "source_task": "824eb7bb0ef1",
+          "generated": false
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "selection_criteria",
+        "constraint_a": {
+          "text": "Must find the cheapest option",
+          "source_task": "733f1d8bf79d",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must find the most expensive option",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "discount_duration",
+        "constraint_a": {
+          "text": "Travel deal or discount must last more than 10 days",
+          "source_task": "733f1d8bf79d",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Travel deal or discount must last less than 5 days",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "departure_date",
+        "constraint_a": {
+          "text": "Departure must be in the next month",
+          "source_task": "733f1d8bf79d",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Departure must be in the next week",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "screen_size",
+        "constraint_a": {
+          "text": "Screen size must be between 55 and 65 inches",
+          "source_task": "db1ffb5e6057",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Screen size must be between 40 and 50 inches",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "display_type",
+        "constraint_a": {
+          "text": "Display type must be LED",
+          "source_task": "db1ffb5e6057",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Display type must be OLED",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "on_sale",
+        "constraint_a": {
+          "text": "Must be on sale.",
+          "source_task": "c1d6ea6f2196",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must not be on sale.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      }
+    ],
+    "29078e7a9bf4": [
+      {
+        "dimension": "color",
+        "constraint_a": {
+          "text": "Must have a black finish.",
+          "source_task": "c1d6ea6f2196",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Color must be any shade of blue",
+          "source_task": "8689af4d33ce",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "color",
+        "constraint_a": {
+          "text": "Color must be black",
+          "source_task": "c6c9dc607967",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The color must be brown.",
+          "source_task": "11857213ca01",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "screen_size",
+        "constraint_a": {
+          "text": "Screen size must be between 27 and 32 inches",
+          "source_task": "7fff82864f21",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Screen size must be between 24 and 27 inches",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "brand",
+        "constraint_a": {
+          "text": "Brand must be Samsung or LG",
+          "source_task": "7fff82864f21",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Brand must be Dell or HP",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "resolution",
+        "constraint_a": {
+          "text": "Resolution must be 4k",
+          "source_task": "7fff82864f21",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Resolution must be 1440p",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "display_type",
+        "constraint_a": {
+          "text": "Display type must be IPS",
+          "source_task": "7fff82864f21",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Display type must be VA",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "availability",
+        "constraint_a": {
+          "text": "Must be available nearby",
+          "source_task": "7fff82864f21",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must be available for delivery",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "priority",
+        "constraint_a": {
+          "text": "Find the monitors with the lowest price",
+          "source_task": "7fff82864f21",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The product must be the most top-selling item.",
+          "source_task": "11857213ca01",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "storage_capacity",
+        "constraint_a": {
+          "text": "Storage capacity must be 256GB",
+          "source_task": "8689af4d33ce",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Storage capacity must be 512GB",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "size",
+        "constraint_a": {
+          "text": "The size must be 10 or 10.5.",
+          "source_task": "11857213ca01",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The size must be 9 or 9.5.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "finish",
+        "constraint_a": {
+          "text": "Must have a leather finish",
+          "source_task": "c6c9dc607967",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must have a fabric finish",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      }
+    ],
+    "c3566331f37f": [
+      {
+        "dimension": "rating",
+        "constraint_a": {
+          "text": "Must have at least four stars",
+          "source_task": "c6c9dc607967",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "User rating must be 4.5 stars or higher",
+          "source_task": "m2w2_buy_str",
+          "generated": false
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "price",
+        "constraint_a": {
+          "text": "Must be the cheapest (lowest price) among qualifying products",
+          "source_task": "c6c9dc607967",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must be the most expensive (highest price) among qualifying products",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "price",
+        "constraint_a": {
+          "text": "Price must be between $250 and $300.",
+          "source_task": "m2w2_buy_str",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Price must be between $300 and $350.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "material_composition",
+        "constraint_a": {
+          "text": "The combined total of Polyester (including microfiber, fleece, or metallised polyester), Nylon (including polyamide), Rayon (including viscose, modal, tencel/lyocell), and Spandex (including elastane, lycra) must be less than 50% in the outer shell",
+          "source_task": "m2w2_blazer_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The combined total of Polyester (including microfiber, fleece, or metallised polyester), Nylon (including polyamide), Rayon (including viscose, modal, tencel/lyocell), and Spandex (including elastane, lycra) must be less than 30% in the outer shell",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "material_composition",
+        "constraint_a": {
+          "text": "The combined total of Polyester (including microfiber, fleece, or metallised polyester), Nylon (including polyamide), Rayon (including viscose, modal, tencel/lyocell), and Spandex (including elastane, lycra) must be less than 50% in the lining",
+          "source_task": "m2w2_blazer_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The combined total of Polyester (including microfiber, fleece, or metallised polyester), Nylon (including polyamide), Rayon (including viscose, modal, tencel/lyocell), and Spandex (including elastane, lycra) must be less than 70% in the lining",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "social_proof",
+        "constraint_a": {
+          "text": "The stroller (or its series or strollers from its brand) must have been discussed on Reddit (i.e., there is real-world feedback on Reddit).",
+          "source_task": "m2w2_buy_str",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The stroller (or its series or strollers from its brand) must have been discussed on Twitter (i.e., there is real-world feedback on Twitter).",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "gender",
+        "constraint_a": {
+          "text": "All puppies must be female",
+          "source_task": "m2w2_find_pu",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "All puppies must be male",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "product_type",
+        "constraint_a": {
+          "text": "Each example product must be a bottle or a box.",
+          "source_task": "m2w2_plastic",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Each example product must be a jar or a can.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "ingredient_must_contain",
+        "constraint_a": {
+          "text": "Must contain Squalane",
+          "source_task": "m2w2_sephora",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must contain Ceramide",
+          "source_task": "m2w2_sephora",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "ingredient_must_not_contain",
+        "constraint_a": {
+          "text": "Must not contain Dimethicone",
+          "source_task": "m2w2_sephora",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must not contain Parabens",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "result_count",
+        "constraint_a": {
+          "text": "Exactly three results must be returned",
+          "source_task": "m2w2_sephora",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Exactly five results must be returned",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "color",
+        "constraint_a": {
+          "text": "Models must be black in color",
+          "source_task": "m2w2_find_bi",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Models must be white in color",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      }
+    ]
+  },
+  "health_medical_info": {
+    "063c7e57e512": [
+      {
+        "dimension": "recency",
+        "constraint_a": {
+          "text": "Posts must be from the past 30 days",
+          "source_task": "4d3157aab34b",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Jobs must be the most recent",
+          "source_task": "c00437fd76a7",
+          "generated": false
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "result_quantity",
+        "constraint_a": {
+          "text": "Only the top 5 hospitals should be included.",
+          "source_task": "m2w2_heart_f",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Exactly three illnesses must be identified.",
+          "source_task": "m2w2_search_",
+          "generated": false
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "recipe_healthiness",
+        "constraint_a": {
+          "text": "Recipes must be healthy",
+          "source_task": "301f267f421b",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Recipes must be low calorie",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "recipe_flavor",
+        "constraint_a": {
+          "text": "Recipes must be savory",
+          "source_task": "301f267f421b",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Recipes must be sweet",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "recipe_nutrition",
+        "constraint_a": {
+          "text": "Recipes must contain a high level of protein",
+          "source_task": "301f267f421b",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Recipes must contain a low level of fat",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "job_experience",
+        "constraint_a": {
+          "text": "Jobs must require 1-3 years of industry experience",
+          "source_task": "c00437fd76a7",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Jobs must require entry-level (0-1 years) experience",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      }
+    ]
+  },
+  "housing_real_estate": {
+    "a0cc3e5d0f8d": [
+      {
+        "dimension": "room_type",
+        "constraint_a": {
+          "text": "Room type must be shared",
+          "source_task": "8ae510355d97",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Room type must be private",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "bathroom_type",
+        "constraint_a": {
+          "text": "Must have a private bathroom",
+          "source_task": "8ae510355d97",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Bathroom must be shared",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "wifi_included",
+        "constraint_a": {
+          "text": "Must have wifi included",
+          "source_task": "8ae510355d97",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Wifi must not be included",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "gas_bills_included",
+        "constraint_a": {
+          "text": "Gas must be included in the bills",
+          "source_task": "8ae510355d97",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Gas is not included in the bills",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "bedrooms_count",
+        "constraint_a": {
+          "text": "Apartment must have 2 bedrooms",
+          "source_task": "eb323dc58415",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Apartment must have 1 bedroom",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "bathrooms_count",
+        "constraint_a": {
+          "text": "Apartment must have 3 or more bathrooms",
+          "source_task": "eb323dc58415",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Apartment must have 1 bathroom",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "price_sort",
+        "constraint_a": {
+          "text": "Listing must be the cheapest available",
+          "source_task": "eb323dc58415",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Listing must be the most expensive available",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "bills_cleaning",
+        "constraint_a": {
+          "text": "Bills must include cleaning services",
+          "source_task": "85b284c18d7e",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Bills must not include cleaning services",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "price_range",
+        "constraint_a": {
+          "text": "Price must be between 100 to 300 pounds",
+          "source_task": "9d090a15c214",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Price must be between 200 to 400 pounds",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "pool",
+        "constraint_a": {
+          "text": "Properties must have a pool",
+          "source_task": "2d5a7f95f951",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Properties must not have a pool",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "outdoor_space",
+        "constraint_a": {
+          "text": "Properties must have a private outdoor space",
+          "source_task": "2d5a7f95f951",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Properties must not have a private outdoor space",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      }
+    ],
+    "0920ee9e17be": [
+      {
+        "dimension": "price_range",
+        "constraint_a": {
+          "text": "Price must be between $250,000 and $400,000 USD",
+          "source_task": "m2w2_houses_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Price must be between $200,000 and $300,000 USD",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "proximity_to_school",
+        "constraint_a": {
+          "text": "Each house must be within a 5-mile driving distance of an elementary school",
+          "source_task": "m2w2_houses_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Each house must be within a 10-mile driving distance of an elementary school",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      }
+    ]
+  },
+  "local_services_directory": {
+    "4b280ae4c7a7": [
+      {
+        "dimension": "energy level",
+        "constraint_a": {
+          "text": "Dog must be energetic",
+          "source_task": "eb2db4b769c1",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Dog must be calm",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "coat type",
+        "constraint_a": {
+          "text": "Dog must be hairless",
+          "source_task": "eb2db4b769c1",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Dog must have short hair",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "barking level",
+        "constraint_a": {
+          "text": "Dog must have medium barking",
+          "source_task": "eb2db4b769c1",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Dog must have low barking",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "review sentiment",
+        "constraint_a": {
+          "text": "Reviews must be negative",
+          "source_task": "c801d1c951f5",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Reviews must be positive",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "playtime",
+        "constraint_a": {
+          "text": "Players must have over 100 hours of playtime",
+          "source_task": "c801d1c951f5",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Players must have over 50 hours of playtime",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "playtime",
+        "constraint_a": {
+          "text": "Reviews must be from players who have played over 100 hours",
+          "source_task": "62c8d970b3d1",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Reviews must be from players who have played under 100 hours",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "review recency",
+        "constraint_a": {
+          "text": "Reviews must be the latest",
+          "source_task": "c801d1c951f5",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Reviews must be the oldest",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "platform",
+        "constraint_a": {
+          "text": "Reviews must be from players who primarily use a Steam Deck",
+          "source_task": "62c8d970b3d1",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Reviews must be from players who primarily use a Windows PC",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "duration",
+        "constraint_a": {
+          "text": "Event duration must be between 1 to 3 hours per session",
+          "source_task": "e43cbc8a0bf9",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Event duration must be between 4 to 6 hours per session",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "cost",
+        "constraint_a": {
+          "text": "Cost must be under $100 per person",
+          "source_task": "e43cbc8a0bf9",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Cost must be under $50 per person",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "availability date range",
+        "constraint_a": {
+          "text": "Event must be available for booking between next Monday and next Friday",
+          "source_task": "e43cbc8a0bf9",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Event must be available for booking between next Saturday and next Tuesday",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "rating",
+        "constraint_a": {
+          "text": "Event must have a rating of 4.5 or higher",
+          "source_task": "e43cbc8a0bf9",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Event must have a rating of 4.0 or higher",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "proximity",
+        "constraint_a": {
+          "text": "The shelter must be within a 15-minute drive of Easton Town Center",
+          "source_task": "m2w2_foster_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The shelter must be within a 30-minute drive of Easton Town Center",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "number of dogs",
+        "constraint_a": {
+          "text": "Three dogs must be found from the shelter's website",
+          "source_task": "m2w2_foster_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Two dogs must be found from the shelter's website",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "age",
+        "constraint_a": {
+          "text": "The dogs must be under six years old",
+          "source_task": "m2w2_foster_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The dogs must be under two years old",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      }
+    ],
+    "ab43c2100a22": [
+      {
+        "dimension": "gender",
+        "constraint_a": {
+          "text": "Cats must be female.",
+          "source_task": "m2w2_cat_ado",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Cats must be male.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "hair_length",
+        "constraint_a": {
+          "text": "Cats must be short-haired.",
+          "source_task": "m2w2_cat_ado",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Cats must be long-haired.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "age",
+        "constraint_a": {
+          "text": "Age must be either a kitten or young (generally 0-2 years old).",
+          "source_task": "m2w2_cat_ado",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Age must be adult (2-6 years old).",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "count",
+        "constraint_a": {
+          "text": "Must find exactly three restaurants.",
+          "source_task": "m2w2_manhatt",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Number of studios to find must be exactly four.",
+          "source_task": "m2w2_spinnin",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "rating",
+        "constraint_a": {
+          "text": "Each restaurant must have a Yelp rating of at least 4 stars.",
+          "source_task": "m2w2_manhatt",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Google review rating must be 4.5 stars or higher.",
+          "source_task": "m2w2_spinnin",
+          "generated": false
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "cost",
+        "constraint_a": {
+          "text": "Estimated cost per person must be no more than $30, or the restaurant must have a cost indicator of two dollar signs ('$$') as shown on Google Maps.",
+          "source_task": "m2w2_morocca",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Estimated cost per person must be no more than $50.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "walking_distance",
+        "constraint_a": {
+          "text": "The walking distance between any two consecutive restaurants in the itinerary must not exceed 3 miles.",
+          "source_task": "m2w2_manhatt",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The walking distance between any two consecutive restaurants in the itinerary must not exceed 2 miles.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      }
+    ]
+  },
+  "logistics_admin": {
+    "d604d45db337": [
+      {
+        "dimension": "shipping_speed",
+        "constraint_a": {
+          "text": "Shipping must occur at the first available date and time",
+          "source_task": "ce616721ce9a",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Shipping must occur at the last available date and time",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      }
+    ]
+  },
+  "media_information_content": {
+    "14f74fbaa390": [
+      {
+        "dimension": "review_score",
+        "constraint_a": {
+          "text": "Review score must be 10",
+          "source_task": "aa4b5cb7114f",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Review score must be at least 8",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "event_time",
+        "constraint_a": {
+          "text": "Events must occur within the current month",
+          "source_task": "c698ff3fc0f6",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Events must occur within the next week",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "forecast_range",
+        "constraint_a": {
+          "text": "Forecast must cover the next seven days",
+          "source_task": "871e7771cecb",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Forecast must cover the next three days",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "storage_size",
+        "constraint_a": {
+          "text": "Self-storage unit must fit the contents of two small bedrooms",
+          "source_task": "2fc51dd3febd",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Self-storage unit must fit the contents of a one-bedroom apartment",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "storage_condition",
+        "constraint_a": {
+          "text": "Self-storage unit must be climate-controlled",
+          "source_task": "2fc51dd3febd",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Self-storage unit must be non-climate-controlled",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "news_recency",
+        "constraint_a": {
+          "text": "News must be the latest",
+          "source_task": "f389398d2eeb",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "News must be from the past 24 hours",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "chart_data_range",
+        "constraint_a": {
+          "text": "Chart must display yearly data",
+          "source_task": "82eb3bfedd78",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Chart must display monthly data",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "time_period",
+        "constraint_a": {
+          "text": "Time period must be the last month",
+          "source_task": "e24662008c3b",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Time period must be 5 days",
+          "source_task": "1fc28d91d25c",
+          "generated": false
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "post_recency",
+        "constraint_a": {
+          "text": "Posts must be from last year",
+          "source_task": "8f80e64e44e1",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Posts must be from last month",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "course_level",
+        "constraint_a": {
+          "text": "Course level must be beginner",
+          "source_task": "ba2a469af584",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Course level must be intermediate",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "dietary_restriction",
+        "constraint_a": {
+          "text": "Recipes must be gluten-free",
+          "source_task": "0632e496d37b",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Recipes must not include nuts",
+          "source_task": "0632e496d37b",
+          "generated": false
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "accommodation_policy",
+        "constraint_a": {
+          "text": "Accommodation must be pet-friendly",
+          "source_task": "a13e4231a3d6",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Accommodation must be non-pet-friendly",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "budget",
+        "constraint_a": {
+          "text": "Budget must be between $100 to $300 per night",
+          "source_task": "a13e4231a3d6",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Budget must be between $200 to $500 per night",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      }
+    ],
+    "078d79fc7512": [
+      {
+        "dimension": "amenity",
+        "constraint_a": {
+          "text": "Must include free parking as an amenity",
+          "source_task": "a13e4231a3d6",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must include a washer as an amenity",
+          "source_task": "a13e4231a3d6",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "course_schedule_day",
+        "constraint_a": {
+          "text": "Courses must be scheduled on Tuesdays",
+          "source_task": "b99c02965196",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Courses must be scheduled on Monday afternoons",
+          "source_task": "27fa3ac20745",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "course_schedule_time",
+        "constraint_a": {
+          "text": "Courses must have a starting time between 2:00 PM and 6:00 PM",
+          "source_task": "b99c02965196",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Courses must have a starting time between 9:00 AM and 1:00 PM",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "press_release_order",
+        "constraint_a": {
+          "text": "Must be the earliest press release available",
+          "source_task": "da8f3823a827",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must be the latest press release available",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "issue_comment_order",
+        "constraint_a": {
+          "text": "Issue must have the most comments",
+          "source_task": "512fd4deab09",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Issue must have the fewest comments",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "job_type",
+        "constraint_a": {
+          "text": "Job type must be full-time",
+          "source_task": "1aeca99e6a60",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Job type must be part-time",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "minimum_salary",
+        "constraint_a": {
+          "text": "Minimum salary must be $4,000 per month",
+          "source_task": "1aeca99e6a60",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Minimum salary must be $5,000 per month",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "submission_date_range",
+        "constraint_a": {
+          "text": "Submission dates must be between September 2024 and January 2025",
+          "source_task": "71f8de183459",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Submission dates must be between June 2024 and December 2024",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "state_inclusion",
+        "constraint_a": {
+          "text": "Data must include Ohio",
+          "source_task": "d4fb78b7e745",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Data must include New York",
+          "source_task": "d4fb78b7e745",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "gas_rating_threshold",
+        "constraint_a": {
+          "text": "Gas station rating must be above 4.0",
+          "source_task": "0e42c3a73f2a",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Gas station rating must be above 4.5",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "review_sort_order",
+        "constraint_a": {
+          "text": "User reviews must be sorted by the lowest rating",
+          "source_task": "0e42c3a73f2a",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "User reviews must be sorted by the highest rating",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      }
+    ],
+    "e560e59803ee": [
+      {
+        "dimension": "year",
+        "constraint_a": {
+          "text": "Model year must be 2019 or newer",
+          "source_task": "c3a333968fc3",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Van must be from the year 2024 or newer",
+          "source_task": "f27b393bbd20",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "radius",
+        "constraint_a": {
+          "text": "Search must be within a 200-mile radius of ZIP code 97007",
+          "source_task": "c3a333968fc3",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Search must be within a 100-mile radius of ZIP code 97007",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "duration",
+        "constraint_a": {
+          "text": "Duration must be between 12 and 18 minutes",
+          "source_task": "bb5d90e6f2fb",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Duration must be between 5 and 10 minutes",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "mileage",
+        "constraint_a": {
+          "text": "Van must have up to 10,000 miles",
+          "source_task": "f27b393bbd20",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Van must have up to 50,000 miles",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "month",
+        "constraint_a": {
+          "text": "Data must be for July 2024",
+          "source_task": "461ab9b0c7b2",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Data must be for August 2024",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "event_date_relative",
+        "constraint_a": {
+          "text": "Event date must be within the next five months",
+          "source_task": "1bc154377120",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Event date must be within the next two months",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "ticket_quantity",
+        "constraint_a": {
+          "text": "Number of tickets must be four",
+          "source_task": "1bc154377120",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Number of tickets must be two",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "puzzle_trending",
+        "constraint_a": {
+          "text": "Puzzle must be trending",
+          "source_task": "a48e2f1ee8d8",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Puzzle must be best selling",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "puzzle_position",
+        "constraint_a": {
+          "text": "Puzzle must be the first in the list",
+          "source_task": "a48e2f1ee8d8",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Puzzle must be the last in the list",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "rating",
+        "constraint_a": {
+          "text": "Board game must have a rating above 7.5",
+          "source_task": "99daaed9a83c",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Board game must have a rating above 8.0",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "player_count",
+        "constraint_a": {
+          "text": "Board game must be suitable for 2 players",
+          "source_task": "99daaed9a83c",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Board game must be suitable for 4 players",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "popularity",
+        "constraint_a": {
+          "text": "Board game must be the most popular",
+          "source_task": "99daaed9a83c",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Board game must be in the top 3",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "foreign_transaction_fee",
+        "constraint_a": {
+          "text": "Must not charge foreign transaction fees",
+          "source_task": "7072d0943697",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must charge foreign transaction fees",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "card_comparison_count",
+        "constraint_a": {
+          "text": "Only the first two credit cards should be compared",
+          "source_task": "7072d0943697",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Only the first three credit cards should be compared",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      }
+    ],
+    "c15414359134": [
+      {
+        "dimension": "y_combinator_batch",
+        "constraint_a": {
+          "text": "Companies must be from the 2022 Y Combinator batch",
+          "source_task": "f05e87c5b92d",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Companies must be from the 2023 Y Combinator batch",
+          "source_task": "f05e87c5b92d",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "company_location",
+        "constraint_a": {
+          "text": "Companies must be based in France",
+          "source_task": "f05e87c5b92d",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Companies must be based in the United States",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "job_openings",
+        "constraint_a": {
+          "text": "Companies must currently have job openings",
+          "source_task": "f05e87c5b92d",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Companies must not currently have job openings",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "time_range",
+        "constraint_a": {
+          "text": "Focus on the latest ten available years",
+          "source_task": "m2w2_edgar_b",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Focus on the latest five available years",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "price_type",
+        "constraint_a": {
+          "text": "The price must be the current lowest monthly price.",
+          "source_task": "m2w2_oscar_s",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The price must be the current lowest annual price.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "excluded_offer_type",
+        "constraint_a": {
+          "text": "Free trial offers must be excluded from the price consideration.",
+          "source_task": "m2w2_oscar_s",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Student plans must be excluded from the price consideration.",
+          "source_task": "m2w2_oscar_s",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "excluded_offer_type",
+        "constraint_a": {
+          "text": "Promotional offers must be excluded from the price consideration.",
+          "source_task": "m2w2_oscar_s",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Military discount offers must be excluded from the price consideration.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "dish_taste",
+        "constraint_a": {
+          "text": "The dishes must be delicious.",
+          "source_task": "m2w2_chinese",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The dishes must be authentic.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "ingredient_count_limit",
+        "constraint_a": {
+          "text": "Across all four recipes, the total number of unique ingredients or seasonings, excluding tofu, must be no more than 30",
+          "source_task": "m2w2_tofu_lu",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Across all four recipes, the total number of unique ingredients or seasonings, excluding tofu, must be no more than 20",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "course_count",
+        "constraint_a": {
+          "text": "Must include exactly five courses",
+          "source_task": "m2w2_plan_nl",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must include exactly seven courses",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "presentation_order",
+        "constraint_a": {
+          "text": "The order of presentation must be: first the Wikipedia page and the population and rank, then the rental price ranking information, and finally the landmarks and historical events.",
+          "source_task": "m2w2_city_in",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The order of presentation must be: first the landmarks and historical events, then the rental price ranking information, and finally the Wikipedia page and population and rank.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "object_count",
+        "constraint_a": {
+          "text": "Must identify exactly five objects",
+          "source_task": "m2w2_clevela",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must identify exactly three objects",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "object_date",
+        "constraint_a": {
+          "text": "Objects must date entirely to 2000 BCE or earlier",
+          "source_task": "m2w2_clevela",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Objects must date entirely to 1000 BCE or later",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      }
+    ],
+    "47c509386d31": [
+      {
+        "dimension": "quantity",
+        "constraint_a": {
+          "text": "Exactly 8 issues must be found.",
+          "source_task": "m2w2_closet_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Exactly two datasets should be found.",
+          "source_task": "m2w2_hf_vqa_",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "quantity",
+        "constraint_a": {
+          "text": "Must provide exactly five examples.",
+          "source_task": "m2w2_instrum",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Find exactly three comic books.",
+          "source_task": "m2w2_dc_comi",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "quantity",
+        "constraint_a": {
+          "text": "Number of papers to find must be exactly 3.",
+          "source_task": "m2w2_openrev",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Number of papers to find must be exactly 5.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "recency",
+        "constraint_a": {
+          "text": "Issues must be published within the past 2 years.",
+          "source_task": "m2w2_closet_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Games must have won awards in the past year (i.e., from the most recent editions of the specified award events).",
+          "source_task": "m2w2_game_aw",
+          "generated": false
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "recency",
+        "constraint_a": {
+          "text": "The ICLR conference must have been hosted within the last year.",
+          "source_task": "m2w2_openrev",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The ICLR conference must have been hosted within the past 3 years.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "size",
+        "constraint_a": {
+          "text": "Datasets must have more than 1 million rows.",
+          "source_task": "m2w2_hf_vqa_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Datasets must have more than 500,000 rows.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "metadata_format",
+        "constraint_a": {
+          "text": "Datasets must be provided with Croissant metadata.",
+          "source_task": "m2w2_hf_vqa_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Datasets must be provided with YAML metadata.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "affiliation_visibility",
+        "constraint_a": {
+          "text": "The HuggingFace profile of the research group must explicitly state the university affiliation.",
+          "source_task": "m2w2_hf_vqa_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The HuggingFace profile of the research group must not explicitly state the university affiliation.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "time_period",
+        "constraint_a": {
+          "text": "Must date from the 19th century or earlier.",
+          "source_task": "m2w2_instrum",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must date from the 20th century or later.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "output_content",
+        "constraint_a": {
+          "text": "The output must include the final recommendation ratings given by each reviewer for the paper",
+          "source_task": "m2w2_mllm_re",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The output must include the paper title and authors.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "section_presence",
+        "constraint_a": {
+          "text": "The 'Related Work' section must not appear anywhere in the main body of the paper",
+          "source_task": "m2w2_openrev",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The 'Related Work' section must appear in the main body of the paper.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      }
+    ],
+    "59396c212bdd": [
+      {
+        "dimension": "exclusion",
+        "constraint_a": {
+          "text": "The three researchers must exclude the PhD advisor.",
+          "source_task": "m2w2_paper_c",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The three researchers must include the PhD advisor.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "co-authored_papers_count",
+        "constraint_a": {
+          "text": "For each researcher, list exactly three co-authored paper titles (co-authored with the first author).",
+          "source_task": "m2w2_paper_c",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "For each researcher, list exactly five co-authored paper titles (co-authored with the first author).",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "repository_limit",
+        "constraint_a": {
+          "text": "Only the 10 most-starred repositories under that topic should be identified.",
+          "source_task": "m2w2_rag_rep",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Only the 5 most-starred repositories under that topic should be identified.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "publication_venue",
+        "constraint_a": {
+          "text": "Papers must be published on arXiv",
+          "source_task": "m2w2_search_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Papers must be published in a conference proceedings",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      }
+    ]
+  },
+  "public_service_government": {
+    "a364cacc57bd": [
+      {
+        "dimension": "job_type",
+        "constraint_a": {
+          "text": "Job type must be permanent",
+          "source_task": "b3f8bd9198d9",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Job type must be part-time",
+          "source_task": "28e7574e7bd6",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "education_level",
+        "constraint_a": {
+          "text": "Education requirement must be a high school diploma",
+          "source_task": "b3f8bd9198d9",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Education level must be Bachelor's Degree",
+          "source_task": "354b4ddf0488",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "income_range",
+        "constraint_a": {
+          "text": "Income must be in the middle-income range",
+          "source_task": "b3f8bd9198d9",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Income must be in the low-income range",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "year",
+        "constraint_a": {
+          "text": "Must be from the year 2022",
+          "source_task": "4f903626f632",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Must be from the year 2023",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "report_freshness",
+        "constraint_a": {
+          "text": "Report must be the newest available",
+          "source_task": "78baf9dbe7c3",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Report must be from a previous version",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      }
+    ]
+  },
+  "travel_booking": {
+    "b275b8f43754": [
+      {
+        "dimension": "sort_order",
+        "constraint_a": {
+          "text": "Open the discussion with the most replies",
+          "source_task": "046138801a05",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Reviews must be the most helpful",
+          "source_task": "246d654fab7c",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "date",
+        "constraint_a": {
+          "text": "Date must be the next available",
+          "source_task": "c09721cc937d",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Date must be next Saturday",
+          "source_task": "502e86444028",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "time",
+        "constraint_a": {
+          "text": "Departure time must be before 23:00",
+          "source_task": "07bdc5953067",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Departure time must be after 06:00",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "group_size",
+        "constraint_a": {
+          "text": "Group size must be 4 people",
+          "source_task": "502e86444028",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Group size must be 2 people",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "price_choice",
+        "constraint_a": {
+          "text": "Paddling permits must be the cheapest available",
+          "source_task": "47e314cc452c",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Paddling permits must be the most expensive available",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "rating",
+        "constraint_a": {
+          "text": "Reviews must be 5-star",
+          "source_task": "246d654fab7c",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Hotel must be top-rated",
+          "source_task": "ba01ea557b73",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "duration",
+        "constraint_a": {
+          "text": "Cruise must last at least 8 days",
+          "source_task": "0a0fa834ce41",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Cruise must last at most 5 days",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "amenities",
+        "constraint_a": {
+          "text": "Hotel must include free breakfast",
+          "source_task": "b2f4fde2fce1",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Hotel must include spa access",
+          "source_task": "b2f4fde2fce1",
+          "generated": false
+        },
+        "symmetric": true
+      }
+    ],
+    "d2b8d18ec9b8": [
+      {
+        "dimension": "stops",
+        "constraint_a": {
+          "text": "Stops must be considered the best",
+          "source_task": "662ae0f2d3ac",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Stops must be direct",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "airline",
+        "constraint_a": {
+          "text": "Flights must be operated by UA or AA",
+          "source_task": "949dc965a6c2",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Airline must be Ryanair",
+          "source_task": "cf757a775fa1",
+          "generated": false
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "arrival time",
+        "constraint_a": {
+          "text": "Arrival time must be between 8:00 PM and 11:00 PM",
+          "source_task": "949dc965a6c2",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Arrival time must be between 6:00 PM and 9:00 PM",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "price",
+        "constraint_a": {
+          "text": "Price must be under $100",
+          "source_task": "cf757a775fa1",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Price must be under $200",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "hotel location",
+        "constraint_a": {
+          "text": "The hotel selection must consider the desire to visit USC.",
+          "source_task": "m2w2_la_visi",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "The hotel selection must consider the desire to visit Santa Monica Pier.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "restaurant distance",
+        "constraint_a": {
+          "text": "Each restaurant must be within a mile driving distance of the corresponding Supercharger.",
+          "source_task": "m2w2_tesla_t",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "Each restaurant must be within a half mile driving distance of the corresponding Supercharger.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "train operator",
+        "constraint_a": {
+          "text": "For Train: the operator must be LNER.",
+          "source_task": "m2w2_london_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "For Train: the operator must be Avanti West Coast.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "train service type",
+        "constraint_a": {
+          "text": "For Train: the service must be direct.",
+          "source_task": "m2w2_london_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "For Train: the service must be indirect.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "train ticket type",
+        "constraint_a": {
+          "text": "For Train: the ticket type must be Standard Fixed.",
+          "source_task": "m2w2_london_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "For Train: the ticket type must be Standard Flexible.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "bus operator",
+        "constraint_a": {
+          "text": "For Bus: the operator must be FlixBus.",
+          "source_task": "m2w2_london_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "For Bus: the operator must be National Express.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "bus service type",
+        "constraint_a": {
+          "text": "For Bus: the service must be direct.",
+          "source_task": "m2w2_london_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "For Bus: the service must be indirect.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "flight service type",
+        "constraint_a": {
+          "text": "For Flight: the flight must be direct.",
+          "source_task": "m2w2_london_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "For Flight: the flight must have one stop.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": false
+      },
+      {
+        "dimension": "flight fare type",
+        "constraint_a": {
+          "text": "For Flight: the fare type must be Basic.",
+          "source_task": "m2w2_london_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "For Flight: the fare type must be Standard.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      },
+      {
+        "dimension": "airline",
+        "constraint_a": {
+          "text": "For Flight: the airline must be Ryanair.",
+          "source_task": "m2w2_london_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "For Flight: the airline must be British Airways.",
+          "source_task": null,
+          "generated": true
+        },
+        "symmetric": true
+      }
+    ],
+    "0a6c0ccdb3d9": [
+      {
+        "dimension": "departure_time_relative_to_noon",
+        "constraint_a": {
+          "text": "For each transportation method, one selected departure must be clearly before noon on the specified date.",
+          "source_task": "m2w2_london_",
+          "generated": false
+        },
+        "constraint_b": {
+          "text": "For each transportation method, one selected departure must be clearly after noon on the specified date.",
+          "source_task": "m2w2_london_",
+          "generated": false
+        },
+        "symmetric": true
+      }
+    ]
+  }
+}

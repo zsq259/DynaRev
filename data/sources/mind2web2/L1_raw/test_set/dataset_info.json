@@ -1,0 +1,60 @@
+{
+  "builder_name": "csv",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "mind2_web-2",
+  "dataset_size": 69757,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/osunlp/Mind2Web-2@54f5b2546c30b86812d9564f4800c0c6f77deb45/dev_set.csv": {
+      "num_bytes": 4621,
+      "checksum": null
+    },
+    "hf://datasets/osunlp/Mind2Web-2@54f5b2546c30b86812d9564f4800c0c6f77deb45/test_set.csv": {
+      "num_bytes": 63928,
+      "checksum": null
+    }
+  },
+  "download_size": 68549,
+  "features": {
+    "task_id": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "task_description": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "domain": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "subdomain": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 138306,
+  "splits": {
+    "dev_set": {
+      "name": "dev_set",
+      "num_bytes": 4679,
+      "num_examples": 10,
+      "dataset_name": "mind2_web-2"
+    },
+    "test_set": {
+      "name": "test_set",
+      "num_bytes": 65078,
+      "num_examples": 120,
+      "dataset_name": "mind2_web-2"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}
