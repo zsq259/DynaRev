@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
 
-from ..utils.llm import llm_call, try_parse_json
+from ..utils.llm import llm_json_call
 from .errors import evaluator_error
 
 
@@ -131,17 +131,13 @@ def judge_response_window(
     )
 
     try:
-        raw = llm_call(
+        payload = llm_json_call(
             client=client,
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_prompt},
-            ],
+            system=system_msg,
+            user=user_prompt,
             model=model,
-            temperature=0.0,
             max_tokens=600,
         )
-        payload = try_parse_json(raw)
     except Exception as exc:
         raise evaluator_error("response-window verification failed", exc) from exc
 

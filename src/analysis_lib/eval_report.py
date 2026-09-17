@@ -79,10 +79,28 @@ def main() -> None:
     reason_category_counter = Counter()
     top_fail_reasons = Counter()
 
+    excluded_rows = []
+
     for ep in eval_paths:
         obj = load_json(ep)
         tid = obj.get("task_id", ep.stem.replace(".evaluation", ""))
         result = obj.get("result", {})
+        eval_status = str(result.get("eval_status") or "")
+        excluded = bool(result.get("exclude_from_official")) or eval_status in {
+            "environment_error",
+            "evaluator_error",
+        }
+        runtime = task_runtime.get(tid, {})
+        if excluded:
+            excluded_rows.append(
+                {
+                    "task_id": tid,
+                    "eval_status": eval_status or "excluded",
+                    "completion_status": completion_status(runtime),
+                    "website": runtime.get("website", ""),
+                }
+            )
+            continue
         score = float(result.get("correctness_score", 0.0) or 0.0)
         is_correct = bool(result.get("is_correct", False))
         constraints = result.get("constraint_results", []) or []
@@ -100,7 +118,6 @@ def main() -> None:
                 reason_category_counter[cat] += 1
             top_fail_reasons[short_reason(rs, 120)] += 1
 
-        runtime = task_runtime.get(tid, {})
         rows.append(
             {
                 "task_id": tid,
@@ -137,8 +154,9 @@ def main() -> None:
 
     lines.append("## 1. 总体结果")
     lines.append("")
-    lines.append(f"- 总任务数: {total}")
-    lines.append(f"- 评估完成数: {total}")
+    lines.append(f"- 总任务数: {total + len(excluded_rows)}")
+    lines.append(f"- 正式计分任务数: {total}")
+    lines.append(f"- 外部环境/评测器剔除: {len(excluded_rows)}")
     lines.append(f"- 通过数: {passed}")
     lines.append(f"- 失败数: {failed}")
     lines.append(f"- 通过率: {pass_rate:.2f}%")
@@ -212,6 +230,17 @@ def main() -> None:
             lines.append(f"- 约束 `{fc.get('constraint_id', 'unknown')}`: {fc.get('constraint_description', '')}")
             lines.append(f"  - 原因: {short_reason(str(fc.get('reason', '')), 360)}")
         lines.append("")
+
+    lines.append("## 9. 正式口径剔除（环境/评测器）")
+    lines.append("")
+    if excluded_rows:
+        for r in excluded_rows:
+            lines.append(
+                f"- {r['task_id']} | {r['eval_status']} | website={r['website']}"
+            )
+    else:
+        lines.append("- 无")
+    lines.append("")
 
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")

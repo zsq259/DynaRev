@@ -3,6 +3,11 @@
 from .constraint_judge import simple_verify, verify_claim_on_frame
 from .core import TaskEvaluator
 from .decomposer import SubClaim, decompose, extract_done_message
+from .environment_error import (
+    ENVIRONMENT_ERROR_LABEL,
+    build_environment_error_result,
+    is_environment_error,
+)
 from .errors import EvaluatorError
 from .no_final_submit import (
     NO_FINAL_SUBMIT_LABEL,
@@ -23,6 +28,9 @@ __all__ = [
     "NO_FINAL_SUBMIT_LABEL",
     "build_no_final_submit_result",
     "is_no_final_submit",
+    "ENVIRONMENT_ERROR_LABEL",
+    "build_environment_error_result",
+    "is_environment_error",
     "SubClaim",
     "decompose",
     "extract_done_message",

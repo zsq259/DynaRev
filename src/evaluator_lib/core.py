@@ -14,8 +14,8 @@ Pipeline (v2-bound tasks only — every constraint must carry a source_revision)
     judged.
       type=simple: simple_verify reads done_message + applies logic.
       type=page:   locate the subject's host frame in the trajectory
-                   (last_step preferred; iterate earlier frames),
-                   then verify_claim_on_frame on that frame.
+                   (URLs cited in done_message first; then last_step;
+                   then injection window), then verify_claim_on_frame.
 
   Phase D — combine (deterministic): all sub-claims satisfied → constraint
     satisfied. Any failure → constraint fail. Diagnostic label categorizes
@@ -38,7 +38,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import unquote_plus
+from urllib.parse import unquote_plus, urlparse
 
 from openai import OpenAI
 
@@ -126,6 +126,70 @@ def _frame_match_info(
     # claim expects the page to show. This score is deliberately permissive;
     # only verify_claim_on_frame can turn the candidate into a pass.
     return "semantic_fallback", (2.0 * subject_coverage) + assertion_coverage
+
+
+_DONE_URL_RE = re.compile(r"https?://[^\s<>\"')\]]+", re.IGNORECASE)
+
+
+def _normalize_cite_url(url: str) -> str:
+    """Compare cited links with trajectory URLs (host/path, no fragment)."""
+    raw = (url or "").strip().rstrip(".,;:)")
+    parsed = urlparse(raw)
+    if not parsed.netloc:
+        return ""
+    path = unquote_plus(parsed.path or "").rstrip("/")
+    query = unquote_plus(parsed.query or "")
+    host = parsed.netloc.lower()
+    scheme = (parsed.scheme or "https").lower()
+    if query:
+        return f"{scheme}://{host}{path}?{query}"
+    return f"{scheme}://{host}{path}"
+
+
+def _urls_in_done_message(done_message: str) -> set[str]:
+    found: set[str] = set()
+    for match in _DONE_URL_RE.finditer(done_message or ""):
+        normalized = _normalize_cite_url(match.group(0))
+        if normalized:
+            found.add(normalized)
+    return found
+
+
+def page_candidate_steps(
+    done_message: str,
+    events: List[Dict[str, Any]],
+    start_step: int,
+    last_step: int,
+) -> List[int]:
+    """Build the page-claim scan order.
+
+    Steps whose URL appears in ``done_message`` come first (full trajectory),
+    then ``last_step``, then ``[start_step, last_step)``. Each step once.
+    """
+    cited = _urls_in_done_message(done_message)
+    cited_steps: List[int] = []
+    if cited:
+        for ev in events:
+            step = ev.get("step")
+            if step is None:
+                continue
+            url = _normalize_cite_url(str(ev.get("url") or ""))
+            if url and url in cited:
+                cited_steps.append(int(step))
+
+    window: List[int] = [last_step]
+    for st in range(start_step, last_step):
+        if st != last_step:
+            window.append(st)
+
+    ordered: List[int] = []
+    seen: set[int] = set()
+    for step in cited_steps + window:
+        if step in seen:
+            continue
+        seen.add(step)
+        ordered.append(step)
+    return ordered
 
 
 # (lock_state) → diagnostic label
@@ -447,9 +511,9 @@ class TaskEvaluator:
     ) -> Dict[str, Any]:
         """Locate host frame for sc.subject and verify sc.assertion on it.
 
-        Trial order: last_step first (so trajectories that end on the
-        subject's page lock cleanly), then injection_step .. last_step-1
-        in ascending order.
+        Trial order: trajectory steps whose URL is cited in done_message
+        (full run), then last_step, then injection_step .. last_step-1.
+        Duplicate steps keep the first occurrence.
 
         Locking rule:
         - assertion=None: first frame with is_subject_page=true wins.
@@ -471,10 +535,14 @@ class TaskEvaluator:
         assertion = sc.assertion
         start_step = injection_map.get(s.source_revision, 1)
 
-        candidate_steps: List[int] = [last_step]
-        for st in range(start_step, last_step):
-            if st != last_step:
-                candidate_steps.append(st)
+        events = [
+            ev
+            for ev in self.log_reader.get_events()
+            if ev.get("step") is not None
+        ]
+        candidate_steps = page_candidate_steps(
+            self._done_message, events, start_step, last_step
+        )
 
         last_attempt: Optional[Dict[str, Any]] = None
         last_attempt_step: Optional[int] = None
@@ -484,11 +552,7 @@ class TaskEvaluator:
         # — that frame becomes the hallucination host.
         partial_match: Optional[Tuple[int, Dict[str, Any], str]] = None
 
-        events_by_step = {
-            ev.get("step"): ev
-            for ev in self.log_reader.get_events()
-            if ev.get("step") is not None
-        }
+        events_by_step = {ev.get("step"): ev for ev in events}
         exact_candidates: List[Tuple[int, str, str, float]] = []
         token_candidates: List[Tuple[int, str, str, float]] = []
         fallback_candidates: List[Tuple[int, str, str, float]] = []

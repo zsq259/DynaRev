@@ -203,6 +203,13 @@ def evaluate_run_dir(
         try:
             payload = json.loads(ef.read_text(encoding="utf-8"))
             eval_result = payload["result"]
+            if eval_result.get("exclude_from_official") or eval_result.get(
+                "eval_status"
+            ) in {"environment_error", "evaluator_error"}:
+                status = eval_result.get("eval_status") or "excluded"
+                print(f"→ {task_id}: {status} (excluded from official metrics)")
+                skipped += 1
+                continue
             log_reader = LogReader(run_dir, task_id)
             task = task_instances[task_id]
 

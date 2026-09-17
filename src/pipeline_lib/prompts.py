@@ -62,6 +62,24 @@ Task instruction: `Find Mac external hard drives with capacity greater than 2TB,
 }}
 ```
 
+**Example 3:**
+Task instruction: `I am a DC Comics fan. Could you find three comic books from different series written by the same author as Injustice: Gods Among Us Year One that feature Batman (excluding Injustice itself)? Please provide the links to the homepage of Injustice and these comic books on DC comic's official website.`
+```json
+{{
+  "original_instruction": "I am a DC Comics fan. Could you find three comic books from different series written by the same author as Injustice: Gods Among Us Year One that feature Batman (excluding Injustice itself)? Please provide the links to the homepage of Injustice and these comic books on DC comic's official website.",
+  "constraints": [
+    {{"id": 1, "description": "Comics must be found on DC.com"}},
+    {{"id": 2, "description": "The comics must be written by the same author as Injustice: Gods Among Us Year One"}},
+    {{"id": 3, "description": "Each of the comics kept after Year One must feature Batman"}},
+    {{"id": 4, "description": "The final answer must identify exactly three comic books besides Year One"}},
+    {{"id": 5, "description": "The three comic books must be from different series"}},
+    {{"id": 6, "description": "Injustice: Gods Among Us Year One itself must be excluded from the three comic books"}},
+    {{"id": 7, "description": "The final answer must include a DC.com page link for Injustice: Gods Among Us Year One"}},
+    {{"id": 8, "description": "The final answer must include a DC.com page link for each of the three comic books"}}
+  ]
+}}
+```
+
 Now extract constraints from the following task instruction:
 
 Task instruction: {task}"""
@@ -116,6 +134,70 @@ Output format:
     {{"id": 2, "required": false, "reason": "this is a filter, not a homepage field"}}
   ],
   "i0": "..."
+}}
+```
+
+Here are some examples:
+
+**Example 1:**
+Homepage description: Trip.com train search form (Trains tab). Departure station and arrival station inputs must be filled before Search will run. The form also has a departure date/time control, but it already has a default. High-speed vs other train types is not a required homepage field.
+
+Constraints:
+```json
+{{
+  "constraints": [
+    {{"id": 1, "description": "Must be a high speed train ticket"}},
+    {{"id": 2, "description": "Departure time must be before 23:00"}},
+    {{"id": 3, "description": "Origin must be Shanghai"}},
+    {{"id": 4, "description": "Destination must be Beijing"}}
+  ]
+}}
+```
+
+```json
+{{
+  "classification": [
+    {{"id": 1, "required": false, "reason": "high-speed is not a blocking field on the train search form"}},
+    {{"id": 2, "required": false, "reason": "departure date/time already has a default; before 23:00 is not required to run Search"}},
+    {{"id": 3, "required": true, "reason": "departure-station field must be filled before Search can run"}},
+    {{"id": 4, "required": true, "reason": "arrival-station field must be filled before Search can run"}}
+  ],
+  "i0": "Find a high speed train ticket from Shanghai to Beijing."
+}}
+```
+
+**Example 2:**
+Homepage description: DC.com comics catalog. Titles can be browsed without filling the search box. Character, series, quantity, and link details are later refinements.
+
+Constraints:
+```json
+{{
+  "constraints": [
+    {{"id": 1, "description": "Comics must be found on DC.com"}},
+    {{"id": 2, "description": "The comics must be written by the same author as Injustice: Gods Among Us Year One"}},
+    {{"id": 3, "description": "Each of the comics kept after Year One must feature Batman"}},
+    {{"id": 4, "description": "The final answer must identify exactly three comic books besides Year One"}},
+    {{"id": 5, "description": "The three comic books must be from different series"}},
+    {{"id": 6, "description": "Injustice: Gods Among Us Year One itself must be excluded from the three comic books"}},
+    {{"id": 7, "description": "The final answer must include a DC.com page link for Injustice: Gods Among Us Year One"}},
+    {{"id": 8, "description": "The final answer must include a DC.com page link for each of the three comic books"}}
+  ]
+}}
+```
+
+```json
+{{
+  "classification": [
+    {{"id": 1, "required": false, "reason": "already on DC.com; not a blocking homepage field"}},
+    {{"id": 2, "required": false, "reason": "catalog can be browsed without filling search; author is not a required homepage field"}},
+    {{"id": 3, "required": false, "reason": "character filter after seeing the author's comics"}},
+    {{"id": 4, "required": false, "reason": "quantity can be decided after results"}},
+    {{"id": 5, "required": false, "reason": "series diversity is a later refinement"}},
+    {{"id": 6, "required": false, "reason": "exclusion is a later refinement"}},
+    {{"id": 7, "required": false, "reason": "answer-format link, not needed to start the search"}},
+    {{"id": 8, "required": false, "reason": "answer-format links, not needed to start the search"}}
+  ],
+  "i0": "On DC.com, find Injustice: Gods Among Us Year One and other comic books by the same author."
 }}
 ```
 
@@ -188,8 +270,8 @@ Quality guidance:
 
 Examples illustrating the principle:
 - "The search has been constrained to the previously requested criteria, including cases with zero matches" — rather than "A non-empty result list is displayed".
-- "The query scope defined by prior constraints is established, and the task is ready for the next refinement" — rather than "The system has registered the user's criteria".
-- "The sofa browsing context is active with black leather candidates visible among current results, ready for further refinement" — rather than "A filtered list of black leather sofas with three seats is displayed".
+- "The query scope defined by prior constraints is established" — rather than "The system has registered the user's criteria".
+- "The sofa browsing context is active with black leather candidates visible among current results" — rather than "A filtered list of black leather sofas with three seats is displayed".
 - "Eligibility criteria for child benefit are displayed" — on a static info page where the content always renders, the concrete phrasing is itself branch-robust.
 
 Output format:
@@ -204,6 +286,67 @@ Output format:
 ```
 
 Note: i0 does not have a milestone. Only i_k (k >= 1) has a milestone.
+
+Here are some examples:
+
+**Example 1:**
+Original instruction: `Find a hairless dog breed with medium barking.`
+I0: `Find me a hairless dog breed.`
+
+Constraints:
+```json
+{{
+  "constraints": [
+    {{"id": 1, "description": "Must be a dog breed"}},
+    {{"id": 2, "description": "Must be hairless"}},
+    {{"id": 3, "description": "Barking level must be medium"}}
+  ]
+}}
+```
+
+```json
+{{
+  "instructions": [
+    {{"id": 0, "instruction": "Find me a hairless dog breed."}},
+    {{"id": 1, "instruction": "Now only show breeds with medium barking.",
+     "milestone": "The search context for hairless dog breeds is established."}}
+  ]
+}}
+```
+
+**Example 2:**
+Original instruction: `I am a DC Comics fan. Could you find three comic books from different series written by the same author as Injustice: Gods Among Us Year One that feature Batman (excluding Injustice itself)? Please provide the links to the homepage of Injustice and these comic books on DC comic's official website.`
+I0: `On DC.com, find Injustice: Gods Among Us Year One and other comic books by the same author.`
+
+Constraints:
+```json
+{{
+  "constraints": [
+    {{"id": 1, "description": "Comics must be found on DC.com"}},
+    {{"id": 2, "description": "The comics must be written by the same author as Injustice: Gods Among Us Year One"}},
+    {{"id": 3, "description": "Each of the comics kept after Year One must feature Batman"}},
+    {{"id": 4, "description": "The final answer must identify exactly three comic books besides Year One"}},
+    {{"id": 5, "description": "The three comic books must be from different series"}},
+    {{"id": 6, "description": "Injustice: Gods Among Us Year One itself must be excluded from the three comic books"}},
+    {{"id": 7, "description": "The final answer must include a DC.com page link for Injustice: Gods Among Us Year One"}},
+    {{"id": 8, "description": "The final answer must include a DC.com page link for each of the three comic books"}}
+  ]
+}}
+```
+
+```json
+{{
+  "instructions": [
+    {{"id": 0, "instruction": "On DC.com, find Injustice: Gods Among Us Year One and other comic books by the same author."}},
+    {{"id": 1, "instruction": "Only keep ones that feature Batman.",
+     "milestone": "The DC.com search for Injustice: Gods Among Us Year One and other comic books by the same author is established."}},
+    {{"id": 2, "instruction": "I want three of them, each from a different series, and not Injustice: Gods Among Us Year One itself.",
+     "milestone": "The search for comics by the Year One author is being carried out under the Batman-feature criterion."}},
+    {{"id": 3, "instruction": "Give the DC.com page link for Year One and for each of those three comics.",
+     "milestone": "Three comics by that author, from different series and excluding Injustice itself, are being identified under the Batman criterion."}}
+  ]
+}}
+```
 
 Before you answer, self-check:
 - Ensure each i_k (k >= 1) milestone is a branch-robust semantic state derived only from prior instructions.
@@ -601,8 +744,8 @@ Quality guidance:
 
 Examples illustrating the principle:
 - "The search has been constrained to the previously requested criteria, including cases with zero matches" — rather than "A non-empty result list is displayed".
-- "The query scope defined by prior constraints is established, and the task is ready for the next refinement" — rather than "The system has registered the user's criteria".
-- "The sofa browsing context is active with black leather candidates visible among current results, ready for further refinement" — rather than "A filtered list of black leather sofas with three seats is displayed".
+- "The query scope defined by prior constraints is established" — rather than "The system has registered the user's criteria".
+- "The sofa browsing context is active with black leather candidates visible among current results" — rather than "A filtered list of black leather sofas with three seats is displayed".
 - "Eligibility criteria for child benefit are displayed" — on a static info page where the content always renders, the concrete phrasing is itself branch-robust.
 
 Override insertion timing guidance:
@@ -622,15 +765,46 @@ I0: {i0}
 Override plan:
 {override_plan}
 
-Output format:
+Here are some examples:
+
+**Example 1 (override_mode = unconditional):**
+Original instruction: `Find the most viewed TED talk on the topic of robots that lasts between 12 and 18 minutes.`
+I0: `Find me a TED talk on the topic of robots that lasts 6 to 12 minutes.`
+Override plan: duration 6–12 minutes → 12–18 minutes.
+
 ```json
 {{
   "instructions": [
-    {{"id": 0, "instruction": "..."}},
-    {{"id": 1, "instruction": "...", "milestone": "...", "type": "additive"}},
-    {{"id": 2, "instruction": "...", "milestone": "...", "type": "override"}},
-    {{"id": 3, "instruction": "...", "milestone": "...", "type": "conditional_override",
-      "condition_text": "the cheapest black sofa costs at least 500 USD more than the cheapest blue sofa"}}
+    {{"id": 0, "instruction": "Find me a TED talk on the topic of robots that lasts 6 to 12 minutes."}},
+    {{"id": 1, "instruction": "Actually, change the duration to 12 to 18 minutes instead. Keep the topic the same, and pick the most viewed one.",
+     "milestone": "The search context for TED talks on the topic of robots with a duration preference is established.",
+     "type": "override"}}
+  ]
+}}
+```
+
+**Example 2 (override_mode = conditional):**
+Original instruction: `I am a DC Comics fan. Could you find three comic books from different series written by the same author as Injustice: Gods Among Us Year One that feature Batman (excluding Injustice itself)? Please provide the links to the homepage of Injustice and these comic books on DC comic's official website.`
+I0: `On DC.com, find Injustice: Gods Among Us Year One and other comic books by the same author.`
+Override plan: keep Batman as the default; if fewer than 2 matching comics are listed, drop the Batman filter.
+
+```json
+{{
+  "instructions": [
+    {{"id": 0, "instruction": "On DC.com, find Injustice: Gods Among Us Year One and other comic books by the same author."}},
+    {{"id": 1, "instruction": "Only keep ones that feature Batman.",
+     "milestone": "The DC.com search for Injustice: Gods Among Us Year One and other comic books by the same author is established.",
+     "type": "additive"}},
+    {{"id": 2, "instruction": "I prefer keeping the Batman requirement. If fewer than two such comics are listed, drop the Batman filter and keep comics by that author.",
+     "milestone": "The search for comics by the Year One author is being carried out under the Batman-feature criterion.",
+     "type": "conditional_override",
+     "condition_text": "DC.com results for comic books by the same author as Injustice: Gods Among Us Year One that feature Batman list fewer than 2 comics besides Year One."}},
+    {{"id": 3, "instruction": "I want three of them, each from a different series, and not Injustice: Gods Among Us Year One itself.",
+     "milestone": "The working search for comics by the Year One author follows the character branch: the Batman requirement remains after the default match count is known, or the Batman filter has been dropped.",
+     "type": "additive"}},
+    {{"id": 4, "instruction": "Give the DC.com page link for Year One and for each of those three comics.",
+     "milestone": "Three comics by that author, from different series and excluding Injustice itself, are being identified on the working character branch.",
+     "type": "additive"}}
   ]
 }}
 ```

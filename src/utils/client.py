@@ -54,12 +54,8 @@ def _resolve_provider(model: str) -> tuple[str, str]:
     return os.environ.get("OPENAI_BASE_URL", ""), os.environ.get("OPENAI_API_KEY", "")
 
 
-@lru_cache(maxsize=8)
-def get_client(model: str) -> OpenAI:
-    """Get or create an OpenAI client for the given model name.
-
-    Clients are cached by model name so the same provider reuses one client.
-    """
+def make_client(model: str) -> OpenAI:
+    """Build a new OpenAI client for ``model`` (no process-wide cache)."""
     base_url, api_key = _resolve_provider(model)
     kwargs: Dict[str, Any] = {}
     if base_url:
@@ -67,3 +63,13 @@ def get_client(model: str) -> OpenAI:
     if api_key:
         kwargs["api_key"] = api_key
     return OpenAI(**kwargs)
+
+
+@lru_cache(maxsize=8)
+def get_client(model: str) -> OpenAI:
+    """Get or create an OpenAI client for the given model name.
+
+    Clients are cached by model name so the same provider reuses one client
+    inside a process. Parallel eval workers should call ``make_client`` instead.
+    """
+    return make_client(model)

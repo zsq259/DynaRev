@@ -128,5 +128,145 @@ class EvaluateLogsNoFinalSubmitTests(unittest.TestCase):
             )
 
 
+class EvaluateLogsEnvironmentErrorTests(unittest.TestCase):
+    def test_environment_error_is_excluded_from_official_scores(self):
+        task = _task()
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "run"
+            env_dir = run_dir / task.instance_id
+            env_dir.mkdir(parents=True)
+            (env_dir / "summary.json").write_text(
+                json.dumps({
+                    "completion_status": "environment_error",
+                    "stopped_reason": "env_error",
+                    "environment_retry_exhausted": True,
+                }),
+                encoding="utf-8",
+            )
+            other = TaskInstance(
+                format_version="dyna_task_v2",
+                instance_id="task_2",
+                source={"website": "https://example.test"},
+                runtime={"max_steps": 10},
+                i0="Find the answer.",
+                i0_constraint_ids=[1],
+                revisions=[],
+                milestones=[],
+                constraints=[
+                    Constraint(id=1, description="c1", source_revision="i0"),
+                ],
+            )
+            other_dir = run_dir / other.instance_id
+            other_dir.mkdir(parents=True)
+            (other_dir / "summary.json").write_text(
+                json.dumps({
+                    "completion_status": "max_steps",
+                    "stopped_reason": "max_steps",
+                    "fired_revisions": [],
+                }),
+                encoding="utf-8",
+            )
+
+            def fail_client(*args, **kwargs):
+                raise AssertionError("evaluator client must not be created")
+
+            class BoomEvaluator:
+                def __init__(self, *args, **kwargs):
+                    raise AssertionError("TaskEvaluator must not run")
+
+            output = io.StringIO()
+            with (
+                patch("src.evaluate_logs.load_dyna_jsonl", return_value=[task, other]),
+                patch("src.evaluate_logs.get_client", side_effect=fail_client),
+                patch("src.evaluate_logs.TaskEvaluator", BoomEvaluator),
+                redirect_stdout(output),
+            ):
+                errors = evaluate_run_dir(
+                    run_dir=run_dir,
+                    dataset_path="unused.jsonl",
+                    force=True,
+                )
+
+            self.assertEqual(errors, 0)
+            self.assertIn("EXCLUDED", output.getvalue())
+            env_eval = json.loads(
+                (run_dir / "evaluations" / f"{task.instance_id}.evaluation.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(env_eval["result"]["eval_status"], "environment_error")
+            self.assertTrue(env_eval["result"]["exclude_from_official"])
+            self.assertIsNone(env_eval["result"]["correctness_score"])
+            run_summary = json.loads(
+                (run_dir / "evaluations" / "run_summary.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(run_summary["task_count"], 2)
+            self.assertEqual(run_summary["scored_task_count"], 1)
+            self.assertEqual(run_summary["environment_excluded_count"], 1)
+            self.assertEqual(run_summary["no_final_submit_count"], 1)
+            self.assertEqual(run_summary["success_rate"], 0.0)
+            self.assertEqual(run_summary["mean_correctness_score"], 0.0)
+
+    def test_eval_workers_score_tasks_independently(self):
+        first = _task()
+        second = TaskInstance(
+            format_version="dyna_task_v2",
+            instance_id="task_2",
+            source={"website": "https://other.test"},
+            runtime={"max_steps": 10},
+            i0="Find the answer.",
+            i0_constraint_ids=[1],
+            revisions=[],
+            milestones=[],
+            constraints=[
+                Constraint(id=1, description="c1", source_revision="i0"),
+            ],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "run"
+            for task in (first, second):
+                task_dir = run_dir / task.instance_id
+                task_dir.mkdir(parents=True)
+                (task_dir / "summary.json").write_text(
+                    json.dumps({
+                        "completion_status": "environment_error",
+                        "stopped_reason": "env_error",
+                        "environment_retry_exhausted": True,
+                    }),
+                    encoding="utf-8",
+                )
+
+            def fail_client(*args, **kwargs):
+                raise AssertionError("evaluator client must not be created")
+
+            output = io.StringIO()
+            with (
+                patch("src.evaluate_logs.load_dyna_jsonl", return_value=[first, second]),
+                patch("src.evaluate_logs.get_client", side_effect=fail_client),
+                patch("src.evaluate_logs.make_client", side_effect=fail_client),
+                redirect_stdout(output),
+            ):
+                errors = evaluate_run_dir(
+                    run_dir=run_dir,
+                    dataset_path="unused.jsonl",
+                    force=True,
+                    eval_workers=2,
+                )
+
+            self.assertEqual(errors, 0)
+            for task in (first, second):
+                payload = json.loads(
+                    (run_dir / "evaluations" / f"{task.instance_id}.evaluation.json").read_text(
+                        encoding="utf-8"
+                    )
+                )
+                self.assertEqual(payload["result"]["eval_status"], "environment_error")
+            run_summary = json.loads(
+                (run_dir / "evaluations" / "run_summary.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(run_summary["environment_excluded_count"], 2)
+            self.assertEqual(run_summary["scored_task_count"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

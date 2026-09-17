@@ -7,6 +7,11 @@ models or updated constraint descriptions.
 
 Episodes that hit max_steps without a valid final submit skip the LLM evaluator
 and receive a zero-score ``no_final_submit`` artifact (see evaluator_lib.no_final_submit).
+Website/browser environment failures skip the LLM evaluator and are excluded
+from official score denominators (see evaluator_lib.environment_error).
+Evaluator-model failures are retried from scratch; if they still fail, no
+evaluation JSON is written, so the next ``evaluate_logs`` run retries them
+without ``--force``.
 
 Usage:
     python evaluate_logs.py --run-dir logs/runs/my_run --evaluator-model gpt-4o
@@ -17,16 +22,23 @@ import argparse
 import json
 import re
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, Optional, Set
+from typing import Callable, Dict, Optional, Set
 
 from src.evaluator_lib import EvaluatorError, TaskEvaluator
+from src.evaluator_lib.environment_error import (
+    ENVIRONMENT_ERROR_LABEL,
+    build_environment_error_result,
+    is_environment_error,
+)
 from src.evaluator_lib.no_final_submit import (
     build_no_final_submit_result,
     is_no_final_submit,
 )
 from src.agent_lib.data import load_dyna_jsonl
-from src.utils.client import get_client
+from src.utils.client import get_client, make_client
 from src.utils.log_reader import LogReader
 
 
@@ -37,6 +49,8 @@ def evaluate_run_dir(
     evaluator_model: str = "deepseek-v4-flash",
     force: bool = False,
     execution_date: str = "",
+    eval_retries: int = 2,
+    eval_workers: int = 1,
 ) -> int:
     """Evaluate all tasks in a run directory.
 
@@ -47,6 +61,9 @@ def evaluate_run_dir(
         evaluator_model: LLM model to use for constraint judgment
         force: If True, re-evaluate even if evaluation exists
         execution_date: Date the task was executed (YYYY-MM-DD)
+        eval_retries: extra full-task attempts after an EvaluatorError
+            (discard the failed attempt; do not continue from it)
+        eval_workers: max tasks to score at once; 1 keeps the serial loop
     """
     run_dir = Path(run_dir)
 
@@ -94,99 +111,84 @@ def evaluate_run_dir(
                 forced_eval_file.suffix + ".tmp"
             ).unlink(missing_ok=True)
 
-    client = None
+    print_lock = threading.Lock()
     evaluated_count = 0
     skipped_count = 0
     error_count = 0
-    per_task_summary: list = []   # collected for run-level diagnostic aggregation
+    jobs = []
 
-    def _ensure_client():
-        nonlocal client
-        if client is None:
-            try:
-                client = get_client(evaluator_model)
-            except Exception as exc:
-                raise EvaluatorError(
-                    f"initialization failed: {str(exc)[:200]}"
-                ) from exc
-        return client
+    def _say(message: str) -> None:
+        with print_lock:
+            print(message, flush=True)
 
     for summary_file in summary_files:
-        # New layout: <task_id>/summary.json → task_id is parent dir name
-        # Legacy layout: <task_id>.summary.json → task_id is stem minus suffix
         if summary_file.name == "summary.json":
             task_id = summary_file.parent.name
         else:
             task_id = summary_file.stem.replace(".summary", "")
 
-        # Filter by task_ids if specified
         if task_ids and task_id not in task_ids:
             continue
+        if task_id.startswith("_"):
+            continue
 
-        # Check if already evaluated in standalone evaluation artifact
         eval_file = eval_dir / f"{task_id}.evaluation.json"
-        if not force and eval_file.exists():
-            print(f"  ⊘ {task_id}: already evaluated (use --force to re-evaluate)")
+        if not force and _is_reusable_eval_artifact(eval_file):
+            _say(f"  ⊘ {task_id}: already evaluated (use --force to re-evaluate)")
             skipped_count += 1
             continue
+        jobs.append((summary_file, task_id, eval_file))
+
+    workers = max(1, int(eval_workers or 1))
+    serial_client = None
+
+    def serial_client_factory():
+        nonlocal serial_client
+        if serial_client is None:
+            try:
+                serial_client = get_client(evaluator_model)
+            except Exception as exc:
+                raise EvaluatorError(
+                    f"initialization failed: {str(exc)[:200]}"
+                ) from exc
+        return serial_client
+
+    def parallel_client_factory():
         try:
-            if task_id not in task_instances:
-                print(f"→ Evaluating {task_id}... ✗ ERROR: task {task_id} not found in dataset {dataset_path}")
-                error_count += 1
-                continue
-            task = task_instances[task_id]
-            summary = json.loads(summary_file.read_text(encoding="utf-8"))
+            return make_client(evaluator_model)
+        except Exception as exc:
+            raise EvaluatorError(
+                f"initialization failed: {str(exc)[:200]}"
+            ) from exc
 
-            if is_no_final_submit(summary):
-                print(f"→ {task_id}: no_final_submit (max_steps)...", end=" ", flush=True)
-                evaluation_result = build_no_final_submit_result(task, summary)
-            else:
-                print(f"→ Evaluating {task_id}...", end=" ", flush=True)
-                log_reader = LogReader(run_dir, task_id)
-                evaluator = TaskEvaluator(
-                    task, log_reader, _ensure_client(), evaluator_model, execution_date
-                )
-                evaluation_result = evaluator.evaluate()
+    client_factory = serial_client_factory if workers == 1 else parallel_client_factory
 
-            # Save standalone evaluation artifact (do not mutate execution summary)
-            payload = {
-                "task_id": task_id,
-                "evaluator_model": evaluator_model,
-                "result": evaluation_result,
-            }
-            temp_eval_file = eval_file.with_suffix(eval_file.suffix + ".tmp")
-            temp_eval_file.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-            temp_eval_file.replace(eval_file)
+    def run_job(summary_file, task_id, eval_file) -> str:
+        return _evaluate_one_job(
+            run_dir=run_dir,
+            dataset_path=dataset_path,
+            task_instances=task_instances,
+            summary_file=summary_file,
+            task_id=task_id,
+            eval_file=eval_file,
+            evaluator_model=evaluator_model,
+            execution_date=execution_date,
+            eval_retries=eval_retries,
+            client_factory=client_factory,
+            say=_say,
+        )
 
-            # Report
-            is_correct = evaluation_result.get("is_correct", False)
-            score = evaluation_result.get("correctness_score", 0.0)
-            eval_status = evaluation_result.get("eval_status", "evaluated")
-            if eval_status == "no_final_submit":
-                print(f"✗ FAIL (score: {score:.2f}, no_final_submit)")
-            else:
-                status = "✓ PASS" if is_correct else "✗ FAIL"
-                print(f"{status} (score: {score:.2f})")
-            per_task_summary.append({
-                "task_id": task_id,
-                "correctness_score": score,
-                "is_correct": is_correct,
-                "eval_status": eval_status,
-                "diagnostic_counts": evaluation_result.get("diagnostic_counts", {}),
-            })
-            evaluated_count += 1
+    if workers == 1:
+        outcomes = [run_job(*job) for job in jobs]
+    else:
+        outcomes = []
+        with ThreadPoolExecutor(max_workers=min(workers, len(jobs) or 1)) as pool:
+            futs = [pool.submit(run_job, *job) for job in jobs]
+            for fut in as_completed(futs):
+                outcomes.append(fut.result())
 
-        except EvaluatorError as e:
-            eval_file.with_suffix(eval_file.suffix + ".tmp").unlink(missing_ok=True)
-            print(f"✗ EVALUATOR ERROR: {e}")
-            error_count += 1
-        except Exception as e:
-            eval_file.with_suffix(eval_file.suffix + ".tmp").unlink(missing_ok=True)
-            print(f"✗ ERROR: {e}")
-            error_count += 1
+    evaluated_count = sum(1 for item in outcomes if item == "evaluated")
+    error_count = sum(1 for item in outcomes if item == "error")
 
     # Summary
     print("\n" + "=" * 60)
@@ -198,10 +200,166 @@ def evaluate_run_dir(
     print("=" * 60)
     print(f"Evaluation artifacts: {eval_dir}")
 
-    if per_task_summary:
-        _write_run_summary(eval_dir, per_task_summary, evaluator_model)
+    disk_summary = _load_per_task_from_eval_dir(eval_dir)
+    if disk_summary:
+        _write_run_summary(eval_dir, disk_summary, evaluator_model)
 
     return error_count
+
+
+def _evaluate_one_job(
+    *,
+    run_dir: Path,
+    dataset_path: Optional[str],
+    task_instances: Dict[str, any],
+    summary_file: Path,
+    task_id: str,
+    eval_file: Path,
+    evaluator_model: str,
+    execution_date: str,
+    eval_retries: int,
+    client_factory: Callable,
+    say: Callable[[str], None],
+) -> str:
+    """Score one task. Returns ``evaluated`` or ``error``. Does not write run_summary."""
+    try:
+        if task_id not in task_instances:
+            say(
+                f"→ Evaluating {task_id}... ✗ ERROR: task {task_id} not found in dataset {dataset_path}"
+            )
+            return "error"
+        task = task_instances[task_id]
+        summary = json.loads(summary_file.read_text(encoding="utf-8"))
+
+        if is_environment_error(summary):
+            prefix = f"→ {task_id}: environment_error (excluded from official scores)..."
+            evaluation_result = build_environment_error_result(task, summary)
+        elif is_no_final_submit(summary):
+            prefix = f"→ {task_id}: no_final_submit (max_steps)..."
+            evaluation_result = build_no_final_submit_result(task, summary)
+        else:
+            prefix = f"→ Evaluating {task_id}..."
+            log_reader = LogReader(run_dir, task_id)
+            try:
+                evaluation_result = _evaluate_task_with_retries(
+                    task=task,
+                    log_reader=log_reader,
+                    client=client_factory(),
+                    evaluator_model=evaluator_model,
+                    execution_date=execution_date,
+                    eval_retries=eval_retries,
+                )
+            except EvaluatorError as exc:
+                eval_file.unlink(missing_ok=True)
+                eval_file.with_suffix(eval_file.suffix + ".tmp").unlink(missing_ok=True)
+                say(f"{prefix} ✗ EVALUATOR ERROR: {exc}")
+                return "error"
+
+        payload = {
+            "task_id": task_id,
+            "evaluator_model": evaluator_model,
+            "result": evaluation_result,
+        }
+        temp_eval_file = eval_file.with_suffix(eval_file.suffix + ".tmp")
+        temp_eval_file.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        temp_eval_file.replace(eval_file)
+
+        is_correct = evaluation_result.get("is_correct", False)
+        score = evaluation_result.get("correctness_score", 0.0)
+        eval_status = evaluation_result.get("eval_status", "evaluated")
+        if eval_status == ENVIRONMENT_ERROR_LABEL:
+            say(f"{prefix} ⊘ EXCLUDED")
+        elif eval_status == "no_final_submit":
+            say(f"{prefix} ✗ FAIL (score: {score:.2f}, no_final_submit)")
+        else:
+            status = "✓ PASS" if is_correct else "✗ FAIL"
+            say(f"{prefix} {status} (score: {score:.2f})")
+        return "evaluated"
+    except EvaluatorError as exc:
+        eval_file.with_suffix(eval_file.suffix + ".tmp").unlink(missing_ok=True)
+        say(f"→ Evaluating {task_id}... ✗ EVALUATOR ERROR: {exc}")
+        return "error"
+    except Exception as exc:
+        eval_file.with_suffix(eval_file.suffix + ".tmp").unlink(missing_ok=True)
+        say(f"→ Evaluating {task_id}... ✗ ERROR: {exc}")
+        return "error"
+
+
+def _evaluate_task_with_retries(
+    *,
+    task,
+    log_reader,
+    client,
+    evaluator_model: str,
+    execution_date: str,
+    eval_retries: int,
+):
+    """Run one task evaluation from scratch on each attempt.
+
+    An EvaluatorError discards that attempt's in-memory state and starts
+    a new TaskEvaluator. Partial JSON from a failed LLM call is not reused.
+    """
+    extra = max(0, int(eval_retries))
+    max_attempts = 1 + extra
+    last_error: EvaluatorError | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            evaluator = TaskEvaluator(
+                task, log_reader, client, evaluator_model, execution_date
+            )
+            return evaluator.evaluate()
+        except EvaluatorError as exc:
+            last_error = exc
+            if attempt >= max_attempts:
+                break
+            print(
+                f"(evaluator error, retry {attempt + 1}/{max_attempts})...",
+                end=" ",
+                flush=True,
+            )
+    assert last_error is not None
+    raise last_error
+
+
+def _is_reusable_eval_artifact(eval_file: Path) -> bool:
+    """True when an existing eval JSON should skip a later evaluate_logs run.
+
+    Evaluator failures must not leave a reusable artifact. Leftover
+    ``evaluator_error`` files from older code are treated as missing.
+    """
+    if not eval_file.exists():
+        return False
+    try:
+        payload = json.loads(eval_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    result = payload.get("result") or {}
+    return result.get("eval_status") != "evaluator_error"
+
+
+def _load_per_task_from_eval_dir(eval_dir: Path) -> list:
+    rows = []
+    for path in sorted(eval_dir.glob("*.evaluation.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        result = payload.get("result") or {}
+        rows.append(
+            {
+                "task_id": payload.get("task_id")
+                or path.name.replace(".evaluation.json", ""),
+                "correctness_score": result.get("correctness_score"),
+                "is_correct": result.get("is_correct"),
+                "eval_status": result.get("eval_status", "evaluated"),
+                "exclude_from_official": bool(result.get("exclude_from_official")),
+                "diagnostic_counts": result.get("diagnostic_counts", {}),
+            }
+        )
+    return rows
 
 
 def _write_run_summary(
@@ -217,15 +375,23 @@ def _write_run_summary(
     no_signal_rate, confirmed_failure_rate, ...) computed over the union
     of all per-task constraint outcomes.
     """
-    n = len(per_task)
-    mean_score = sum(t["correctness_score"] for t in per_task) / n if n else 0.0
-    correct_count = sum(1 for t in per_task if t["is_correct"])
+    scored = [t for t in per_task if not t.get("exclude_from_official")]
+    excluded = [t for t in per_task if t.get("exclude_from_official")]
+    n = len(scored)
+    mean_score = sum(float(t["correctness_score"] or 0.0) for t in scored) / n if n else 0.0
+    correct_count = sum(1 for t in scored if t["is_correct"])
     no_final_submit_count = sum(
-        1 for t in per_task if t.get("eval_status") == "no_final_submit"
+        1 for t in scored if t.get("eval_status") == "no_final_submit"
+    )
+    environment_excluded_count = sum(
+        1 for t in excluded if t.get("eval_status") == ENVIRONMENT_ERROR_LABEL
+    )
+    evaluator_excluded_count = sum(
+        1 for t in excluded if t.get("eval_status") == "evaluator_error"
     )
 
     label_totals: Dict[str, int] = {}
-    for t in per_task:
+    for t in scored:
         for label, cnt in (t.get("diagnostic_counts") or {}).items():
             label_totals[label] = label_totals.get(label, 0) + cnt
     total_constraints = sum(label_totals.values())
@@ -236,7 +402,10 @@ def _write_run_summary(
 
     payload = {
         "evaluator_model": evaluator_model,
-        "task_count": n,
+        "task_count": len(per_task),
+        "scored_task_count": n,
+        "environment_excluded_count": environment_excluded_count,
+        "evaluator_excluded_count": evaluator_excluded_count,
         "correct_count": correct_count,
         "success_rate": (correct_count / n) if n else 0.0,
         "mean_correctness_score": mean_score,
@@ -249,7 +418,11 @@ def _write_run_summary(
     out = eval_dir / "run_summary.json"
     out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Run summary: {out}")
-    print(f"  mean_score={mean_score:.3f}  success_rate={correct_count}/{n}")
+    print(
+        f"  mean_score={mean_score:.3f}  success_rate={correct_count}/{n}"
+        f"  env_excluded={environment_excluded_count}"
+        f"  eval_excluded={evaluator_excluded_count}"
+    )
     if label_totals:
         top = sorted(label_totals.items(), key=lambda kv: -kv[1])[:5]
         print(f"  diagnostic top-5: " + ", ".join(f"{k}={v}" for k, v in top))
@@ -290,6 +463,18 @@ def main():
         help="Re-evaluate even if evaluation already exists",
     )
     parser.add_argument(
+        "--eval-retries",
+        type=int,
+        default=2,
+        help="extra full-task evaluation attempts after an evaluator error",
+    )
+    parser.add_argument(
+        "--eval-workers",
+        type=int,
+        default=1,
+        help="max tasks to score at once; 1 keeps the serial loop",
+    )
+    parser.add_argument(
         "--execution-date",
         type=str,
         default=None,
@@ -319,6 +504,8 @@ def main():
         evaluator_model=args.evaluator_model,
         force=args.force,
         execution_date=execution_date,
+        eval_retries=args.eval_retries,
+        eval_workers=args.eval_workers,
     )
     if error_count:
         sys.exit(1)

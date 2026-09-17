@@ -30,6 +30,11 @@ def read_eval_stats(run_dir: Path) -> Dict[str, float]:
             with path.open("r", encoding="utf-8") as f:
                 obj = json.load(f)
             result = obj.get("result") or {}
+            if result.get("exclude_from_official") or result.get("eval_status") in {
+                "environment_error",
+                "evaluator_error",
+            }:
+                continue
             score = float(result.get("correctness_score", 0.0) or 0.0)
             is_correct = bool(result.get("is_correct", False))
             scores.append(score)

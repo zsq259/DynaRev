@@ -8,12 +8,16 @@ ACTION_PATTERN = re.compile(
     r'^(goto|click|fill|press|scroll|send_msg_to_user|report_infeasible)\s*\(',
     re.IGNORECASE,
 )
-# Line-leading action verbs (optional markdown fences around the call).
-_ACTION_START = re.compile(
-    r'(?m)^[ \t]*(?:`{1,3})?(goto|click|fill|press|scroll|send_msg_to_user|report_infeasible)\s*\(',
+# A single call at the start of the fence body (optional wrapping backticks).
+_CALL_HEAD = re.compile(
+    r'^[ \t]*(?:`{1,3})?(goto|click|fill|press|scroll|send_msg_to_user|report_infeasible)\s*\(',
     re.IGNORECASE,
 )
-BARE_URL_PATTERN = re.compile(r"^https?://\S+$")
+# Last ```action fence wins. Closing fence must be on its own line.
+_ACTION_FENCE = re.compile(
+    r"^[ \t]*```[ \t]*action[ \t]*\r?\n(.*?)(?:\r?\n)[ \t]*```[ \t]*$",
+    re.IGNORECASE | re.MULTILINE | re.DOTALL,
+)
 NUMERIC_CLICK_PATTERN = re.compile(r'^click\((\d+)\)$', re.IGNORECASE)
 
 
@@ -26,15 +30,52 @@ def _strip_action_wrappers(text: str) -> str:
     return t
 
 
+def escape_raw_newlines_in_strings(call: str) -> str:
+    """Rewrite raw newlines inside quoted literals to ``\\n`` / ``\\r``.
+
+    BrowserGym ``exec``s the action as Python. A quoted string that contains
+    a real newline is a SyntaxError, so ``send_msg_to_user`` never runs and
+    the episode does not terminate.
+    """
+    out: list[str] = []
+    in_string = False
+    quote_char = ""
+    escape = False
+    for ch in call:
+        if in_string:
+            if escape:
+                out.append(ch)
+                escape = False
+            elif ch == "\\":
+                out.append(ch)
+                escape = True
+            elif ch == quote_char:
+                out.append(ch)
+                in_string = False
+                quote_char = ""
+            elif ch == "\n":
+                out.append("\\n")
+            elif ch == "\r":
+                out.append("\\r")
+            else:
+                out.append(ch)
+            continue
+        out.append(ch)
+        if ch in ('"', "'"):
+            in_string = True
+            quote_char = ch
+    return "".join(out)
+
+
 def normalize_action(action: str) -> str:
     match = NUMERIC_CLICK_PATTERN.match(action.strip())
     if match:
         return f'click("{match.group(1)}")'
-    return action
+    return escape_raw_newlines_in_strings(action)
 
 
-def _complete_action_call(text: str, start: int) -> str | None:
-    """Return the full action call starting at ``start``, or None if incomplete.
+def _complete_action_span(text: str, start: int) -> tuple[str, int] | None:
+    """Return ``(call, end_index)`` for the call starting at ``start``.
 
     Scans from the opening ``(`` with quote/escape awareness so newlines and
     ``)`` characters inside string literals do not truncate the call.
@@ -67,45 +108,49 @@ def _complete_action_call(text: str, start: int) -> str | None:
             elif ch == ")":
                 depth -= 1
                 if depth == 0:
-                    return text[start : i + 1].strip()
+                    return text[start : i + 1].strip(), i + 1
         i += 1
     return None
+
+
+def _exactly_one_call(body: str) -> str:
+    """Return the single BrowserGym call in ``body``, or empty if invalid."""
+    text = _strip_action_wrappers(body.strip())
+    if not text:
+        return ""
+
+    match = _CALL_HEAD.match(text)
+    if not match:
+        return ""
+    start = match.start(1)
+    if text[:start].strip("`").strip():
+        return ""
+
+    span = _complete_action_span(text, start)
+    if span is None:
+        return ""
+    call, end = span
+    if text[end:].strip().strip("`").strip():
+        return ""
+
+    call = _strip_action_wrappers(call)
+    if not ACTION_PATTERN.match(call):
+        return ""
+    return normalize_action(call)
 
 
 def extract_action(raw: str) -> str:
     """Extract one executable action call from model output.
 
-    Prefers the last complete action call whose verb starts a line. Supports
-    multiline string arguments (e.g. ``send_msg_to_user("...\\n...")``). Incomplete
-    calls are ignored so the runner can retry instead of executing a truncated
-    action.
+    Only the last closed `` ```action `` fence is considered. The fence body
+    must contain exactly one complete BrowserGym call. Calls, URLs, XML, and
+    DSML outside that fence are ignored so the runner can retry.
     """
     cleaned = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
     if not cleaned:
         return ""
 
-    # Candidate starts: line-leading action verbs, last match first.
-    for match in reversed(list(_ACTION_START.finditer(cleaned))):
-        # Point at the verb, not leading whitespace / fences.
-        start = match.start(1)
-        call = _complete_action_call(cleaned, start)
-        if call is None:
-            continue
-        call = _strip_action_wrappers(call)
-        if ACTION_PATTERN.match(call):
-            return normalize_action(call)
-
-    # Legacy fallbacks for single-line bare URLs / last line.
-    lines = [
-        _strip_action_wrappers(line.strip())
-        for line in cleaned.splitlines()
-        if line.strip()
-    ]
-    for line in reversed(lines):
-        if BARE_URL_PATTERN.match(line):
-            return f'goto("{line}")'
-        # Single-line complete action only (do not accept truncated prefixes).
-        if ACTION_PATTERN.match(line) and _complete_action_call(line, 0) == line:
-            return normalize_action(line)
-
-    return ""
+    fences = list(_ACTION_FENCE.finditer(cleaned))
+    if not fences:
+        return ""
+    return _exactly_one_call(fences[-1].group(1))

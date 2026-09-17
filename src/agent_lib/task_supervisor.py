@@ -131,6 +131,7 @@ def run_task_isolated(
                     "step": current_step,
                     "elapsed_seconds": round(elapsed, 3),
                     "timeout_seconds": wall_timeout,
+                    "timeout_kind": "wall",
                     "message": f"task wall-clock limit exceeded during {current_phase}",
                 }
                 _stop_process_tree(process)
@@ -142,6 +143,7 @@ def run_task_isolated(
                     "step": current_step,
                     "elapsed_seconds": round(phase_elapsed, 3),
                     "timeout_seconds": browser_timeout,
+                    "timeout_kind": "browser",
                     "message": f"browser operation timed out during {current_phase}",
                 }
                 _stop_process_tree(process)

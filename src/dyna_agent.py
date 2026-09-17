@@ -1,11 +1,13 @@
 import argparse
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
 from src.agent_lib.data import load_dyna_jsonl, load_om2w_hf, select_tasks
 from src.agent_lib.engine import run_one_task
+from src.agent_lib.exec_pool import run_isolated_task_pool
 from src.agent_lib.logging_utils import configure_logging
 from src.agent_lib.presets import PRESETS, apply_preset
 from src.agent_lib.task_supervisor import run_task_isolated
@@ -14,13 +16,16 @@ from src.utils.site_health import SiteHealthStore, normalize_url
 
 
 DEFAULT_MODEL = "deepseek-v4-flash"
+RESUME_RETRYABLE_STATUSES = {"task_exception", "environment_error"}
 
 
 def collect_completed_instance_ids(run_dir: Path) -> set[str]:
     """Collect finished instance IDs from per-task summary artifacts.
 
     Resume behavior is keyed by run_name: if a run directory already exists,
-    tasks with existing "<instance_id>.summary.json" files are skipped.
+    tasks with existing "<instance_id>/summary.json" files are skipped.
+    System crashes and website/browser environment failures are not treated
+    as completed attempts, so a later invocation can retry them.
     """
     completed: set[str] = set()
     if not run_dir.exists():
@@ -28,18 +33,62 @@ def collect_completed_instance_ids(run_dir: Path) -> set[str]:
 
     for path in run_dir.glob("*/summary.json"):
         instance_id = path.parent.name
-        if not instance_id:
+        if not instance_id or instance_id.startswith("_"):
             continue
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        # System exceptions indicate a runner/infrastructure defect and are
-        # retryable after code fixes. Normal outcomes and environment failures
-        # remain completed attempts.
-        if payload.get("completion_status") != "task_exception":
-            completed.add(instance_id)
+        if payload.get("completion_status") in RESUME_RETRYABLE_STATUSES:
+            continue
+        completed.add(instance_id)
     return completed
+
+
+def is_retryable_environment_failure(result: Dict[str, Any]) -> bool:
+    """Website/browser failures are retried; a 2h wall-clock kill is not."""
+    if result.get("completion_status") != "environment_error":
+        return False
+    watchdog = result.get("watchdog") or {}
+    return watchdog.get("timeout_kind") != "wall"
+
+
+def archive_task_dir(run_dir: Path, task_id: str, attempt: int) -> Path | None:
+    """Move a failed attempt aside so the next try writes a clean task dir."""
+    src = run_dir / task_id
+    if not src.exists():
+        return None
+    dest = run_dir / "_env_attempts" / task_id / f"attempt_{attempt}"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        shutil.rmtree(dest)
+    shutil.move(str(src), str(dest))
+    return dest
+
+
+def clear_task_eval_artifact(run_dir: Path, task_id: str) -> None:
+    """Drop a stale evaluation JSON so evaluate_logs will score the new attempt."""
+    eval_dir = run_dir / "evaluations"
+    (eval_dir / f"{task_id}.evaluation.json").unlink(missing_ok=True)
+    (eval_dir / f"{task_id}.evaluation.json.tmp").unlink(missing_ok=True)
+
+
+def stash_resume_environment_dir(run_dir: Path, task_id: str) -> None:
+    """Archive a previous environment/system failure before a fresh attempt."""
+    summary_path = run_dir / task_id / "summary.json"
+    if not summary_path.exists():
+        return
+    try:
+        payload = json.loads(summary_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    if payload.get("completion_status") not in RESUME_RETRYABLE_STATUSES:
+        return
+    n = 1
+    while (run_dir / "_env_attempts" / task_id / f"attempt_{n}").exists():
+        n += 1
+    archive_task_dir(run_dir, task_id, n)
+    clear_task_eval_artifact(run_dir, task_id)
 
 
 def render_progress_bar(done: int, total: int, width: int = 24) -> str:
@@ -73,12 +122,16 @@ def build_run_aggregate(
         if ec:
             category = str(ec)
             error_categories[category] = error_categories.get(category, 0) + 1
+    scored_results = [
+        r for r in results if r.get("completion_status") != "environment_error"
+    ]
     return {
         "run_name": run_name,
         "dataset_type": args.dataset_type,
         "policy_model": args.policy_model,
         "trigger_model": args.trigger_model,
         "history_policy": args.history_policy,
+        "history_obs_keep": getattr(args, "history_obs_keep", 5),
         "revision_policy": args.revision_policy,
         "instruction_policy": args.instruction_policy,
         "instruction_rewrite_model": args.policy_model if args.instruction_policy == "rewrite" else None,
@@ -86,9 +139,19 @@ def build_run_aggregate(
         "task_count": len(results),
         "health_excluded_count": len(exclusions or []),
         "health_exclusions": exclusions or [],
+        "environment_error_count": sum(
+            1 for r in results if r.get("completion_status") == "environment_error"
+        ),
+        "scored_task_count": sum(
+            1 for r in results if r.get("completion_status") != "environment_error"
+        ),
         "done_called_count": sum(1 for r in results if r["done_called"]),
         "submitted_count": sum(1 for r in results if r.get("completion_status") == "submitted"),
-        "avg_steps": (sum(r["steps"] for r in results) / len(results)) if results else 0.0,
+        "avg_steps": (
+            sum(r["steps"] for r in scored_results) / len(scored_results)
+            if scored_results
+            else 0.0
+        ),
         "viewport_only": getattr(args, "viewport_only", False),
         "milestone_fire_count": sum(len(r.get("fired_milestones", [])) for r in results),
         "stop_reason_counts": stop_reasons,
@@ -174,24 +237,142 @@ def build_task_environment_error_result(
     return result
 
 
-def write_failure_artifacts(run_dir: Path, task_id: str, result: Dict[str, Any]) -> None:
+def persist_task_result(run_dir: Path, task_id: str, result: Dict[str, Any]) -> None:
+    """Write summary.json, merging into an existing runner summary when present."""
     task_dir = run_dir / task_id
     task_dir.mkdir(parents=True, exist_ok=True)
+    path = task_dir / "summary.json"
+    payload = dict(result)
+    if path.exists():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(existing, dict):
+                existing.update(result)
+                payload = existing
+        except (OSError, json.JSONDecodeError):
+            pass
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     events_path = task_dir / "events.jsonl"
     if not events_path.exists():
         events_path.write_text("", encoding="utf-8")
-    with open(task_dir / "summary.json", "w", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False, indent=2)
+
+
+def write_failure_artifacts(run_dir: Path, task_id: str, result: Dict[str, Any]) -> None:
+    persist_task_result(run_dir, task_id, result)
 
 
 def load_run_results(run_dir: Path) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
     for path in sorted(run_dir.glob("*/summary.json")):
+        if path.parent.name.startswith("_"):
+            continue
         try:
             results.append(json.loads(path.read_text(encoding="utf-8")))
         except (OSError, json.JSONDecodeError):
             continue
     return results
+
+
+def run_single_attempt(
+    task,
+    args: argparse.Namespace,
+    logger,
+    run_dir: Path,
+    policy_client,
+    trigger_client,
+) -> Dict[str, Any]:
+    """Execute one isolated (or in-process) attempt and persist failure artifacts."""
+    try:
+        if args.no_task_isolation:
+            return run_one_task(task, args, logger, run_dir, policy_client, trigger_client)
+
+        worker_status, payload = run_task_isolated(task, args, run_dir)
+        if worker_status == "result":
+            return payload
+        if worker_status == "timeout":
+            result = build_task_timeout_result(task, args, payload)
+            logger.error(
+                "TASK_WATCHDOG_TIMEOUT | task=%s | phase=%s | step=%s | kind=%s | limit=%ss",
+                task.instance_id,
+                payload.get("phase"),
+                payload.get("step"),
+                payload.get("timeout_kind"),
+                payload.get("timeout_seconds"),
+            )
+            write_failure_artifacts(run_dir, task.instance_id, result)
+            return result
+
+        err = str(payload.get("error", "task worker failed"))[:500]
+        failed_phase = str(payload.get("phase", "unknown"))
+        logger.error(
+            "TASK_WORKER_ERROR | task=%s | phase=%s | error=%s",
+            task.instance_id,
+            failed_phase,
+            err,
+        )
+        if failed_phase.startswith("browser_"):
+            result = build_task_environment_error_result(
+                task,
+                args,
+                err,
+                failed_phase,
+                int(payload.get("step", 0) or 0),
+            )
+        else:
+            result = build_task_crash_result(task, args, err)
+        write_failure_artifacts(run_dir, task.instance_id, result)
+        return result
+    except Exception as e:
+        err = str(e)[:500]
+        logger.exception("TASK_CRASH | task=%s | error=%s", task.instance_id, err)
+        result = build_task_crash_result(task, args, err)
+        write_failure_artifacts(run_dir, task.instance_id, result)
+        return result
+
+
+def run_task_with_env_retries(
+    task,
+    args: argparse.Namespace,
+    logger,
+    run_dir: Path,
+    policy_client,
+    trigger_client,
+) -> Dict[str, Any]:
+    """Retry website/browser failures; keep the last attempt as the task result."""
+    extra = max(0, int(getattr(args, "env_retries", 2)))
+    max_attempts = 1 + extra
+    stash_resume_environment_dir(run_dir, task.instance_id)
+    result: Dict[str, Any] | None = None
+    for attempt in range(1, max_attempts + 1):
+        if attempt > 1:
+            archive_task_dir(run_dir, task.instance_id, attempt - 1)
+            logger.info(
+                "ENV_RETRY | task=%s | attempt=%d/%d",
+                task.instance_id,
+                attempt,
+                max_attempts,
+            )
+        result = run_single_attempt(
+            task, args, logger, run_dir, policy_client, trigger_client
+        )
+        result["environment_attempt"] = attempt
+        result["environment_attempts_max"] = max_attempts
+        persist_task_result(run_dir, task.instance_id, result)
+        if not is_retryable_environment_failure(result):
+            return result
+        logger.warning(
+            "ENV_FAIL | task=%s | attempt=%d/%d | phase=%s | step=%s | %s",
+            task.instance_id,
+            attempt,
+            max_attempts,
+            (result.get("watchdog") or {}).get("phase", result.get("stopped_reason")),
+            (result.get("watchdog") or {}).get("step", result.get("steps")),
+            result.get("error_message", ""),
+        )
+    assert result is not None
+    result["environment_retry_exhausted"] = True
+    persist_task_result(run_dir, task.instance_id, result)
+    return result
 
 
 def task_health_urls(task: Any) -> List[str]:
@@ -229,7 +410,15 @@ def parse_args() -> argparse.Namespace:
         "--history-policy",
         choices=["full", "kill"],
         default="full",
-        help="policy context: full message history or current turn only",
+        help="policy context: full action/thought history or current turn only",
+    )
+    p.add_argument(
+        "--history-obs-keep",
+        type=int,
+        default=5,
+        metavar="K",
+        help="when history-policy=full, keep the last K page snapshots; "
+        "older PAGE CONTENT is omitted (actions and revisions stay)",
     )
     p.add_argument(
         "--revision-policy",
@@ -266,6 +455,19 @@ def parse_args() -> argparse.Namespace:
         help="hard limit in seconds for browser start/step/reset/close inside a task worker",
     )
     p.add_argument(
+        "--env-retries",
+        type=int,
+        default=2,
+        help="extra attempts after a website/browser environment failure; "
+        "exhausted failures are excluded from official scores",
+    )
+    p.add_argument(
+        "--exec-workers",
+        type=int,
+        default=1,
+        help="max isolated task processes in flight; 1 keeps the serial loop",
+    )
+    p.add_argument(
         "--task-wall-timeout",
         type=float,
         default=7200.0,
@@ -283,7 +485,35 @@ def parse_args() -> argparse.Namespace:
         help="opt in to sites explicitly marked incompatible with the benchmark runner",
     )
     p.add_argument("--dry-run", action="store_true", help="validate loading and selection without executing browser")
-    return p.parse_args()
+    args = p.parse_args()
+    if args.history_obs_keep < 1:
+        raise SystemExit("--history-obs-keep must be >= 1")
+    return args
+
+
+def validate_exec_workers(args: argparse.Namespace, tasks: List[Any]) -> int:
+    """Reject combinations that would share a process or dual-write a task dir."""
+    workers = int(getattr(args, "exec_workers", 1) or 1)
+    if workers < 1:
+        raise SystemExit("--exec-workers must be >= 1")
+    if workers > 1 and getattr(args, "no_task_isolation", False):
+        raise SystemExit("--exec-workers > 1 requires task isolation")
+    if workers > 1:
+        ids = [task.instance_id for task in tasks]
+        if len(ids) != len(set(ids)):
+            raise SystemExit("parallel exec requires unique instance_id values")
+    return workers
+
+
+def log_run_progress(logger, done: int, total: int) -> None:
+    bar = render_progress_bar(done, total)
+    logger.info(
+        "RUN_PROGRESS | %s %d/%d (%.1f%%)",
+        bar,
+        done,
+        total,
+        (done / total) * 100.0 if total else 0.0,
+    )
 
 
 def main() -> None:
@@ -345,15 +575,17 @@ def main() -> None:
         )
 
     logger.info(
-        "RUN_START | tasks=%d | policy_model=%s | trigger_model=%s | dataset_type=%s",
+        "RUN_START | tasks=%d | exec_workers=%s | policy_model=%s | trigger_model=%s | dataset_type=%s",
         len(tasks),
+        getattr(args, "exec_workers", 1),
         args.policy_model,
         args.trigger_model,
         args.dataset_type,
     )
     logger.info(
-        "AGENT_PROTOCOL | history_policy=%s | revision_policy=%s | instruction_policy=%s | reasoning_mode=%s",
+        "AGENT_PROTOCOL | history_policy=%s | history_obs_keep=%s | revision_policy=%s | instruction_policy=%s | reasoning_mode=%s",
         args.history_policy,
+        getattr(args, "history_obs_keep", 5),
         args.revision_policy,
         args.instruction_policy,
         getattr(args, "reasoning_mode", "direct"),
@@ -397,65 +629,33 @@ def main() -> None:
         print(str(run_dir))
         return
 
+    exec_workers = validate_exec_workers(args, tasks)
     policy_client = trigger_client = None
     if args.no_task_isolation:
         policy_client = get_client(args.policy_model)
         trigger_client = get_client(args.trigger_model)
 
-    results: List[Dict[str, Any]] = []
     total_tasks = len(tasks)
-    for idx, task in enumerate(tasks, start=1):
-        try:
-            if args.no_task_isolation:
-                result = run_one_task(task, args, logger, run_dir, policy_client, trigger_client)
-            else:
-                worker_status, payload = run_task_isolated(task, args, run_dir)
-                if worker_status == "result":
-                    result = payload
-                elif worker_status == "timeout":
-                    result = build_task_timeout_result(task, args, payload)
-                    logger.error(
-                        "TASK_WATCHDOG_TIMEOUT | task=%s | phase=%s | step=%s | limit=%ss",
-                        task.instance_id,
-                        payload.get("phase"),
-                        payload.get("step"),
-                        payload.get("timeout_seconds"),
-                    )
-                    write_failure_artifacts(run_dir, task.instance_id, result)
-                else:
-                    err = str(payload.get("error", "task worker failed"))[:500]
-                    failed_phase = str(payload.get("phase", "unknown"))
-                    logger.error(
-                        "TASK_WORKER_ERROR | task=%s | phase=%s | error=%s",
-                        task.instance_id,
-                        failed_phase,
-                        err,
-                    )
-                    if failed_phase.startswith("browser_"):
-                        result = build_task_environment_error_result(
-                            task,
-                            args,
-                            err,
-                            failed_phase,
-                            int(payload.get("step", 0) or 0),
-                        )
-                    else:
-                        result = build_task_crash_result(task, args, err)
-                    write_failure_artifacts(run_dir, task.instance_id, result)
-        except Exception as e:
-            err = str(e)[:500]
-            logger.exception("TASK_CRASH | task=%s | error=%s", task.instance_id, err)
-            result = build_task_crash_result(task, args, err)
-            write_failure_artifacts(run_dir, task.instance_id, result)
+    if exec_workers == 1:
+        results = []
+        for idx, task in enumerate(tasks, start=1):
+            results.append(
+                run_task_with_env_retries(
+                    task, args, logger, run_dir, policy_client, trigger_client
+                )
+            )
+            log_run_progress(logger, idx, total_tasks)
+    else:
+        logger.info("EXEC_POOL | workers=%d | tasks=%d", exec_workers, total_tasks)
 
-        results.append(result)
-        bar = render_progress_bar(idx, total_tasks)
-        logger.info(
-            "RUN_PROGRESS | %s %d/%d (%.1f%%)",
-            bar,
-            idx,
-            total_tasks,
-            (idx / total_tasks) * 100.0,
+        def run_one(task):
+            return run_task_with_env_retries(task, args, logger, run_dir, None, None)
+
+        results = run_isolated_task_pool(
+            tasks,
+            exec_workers,
+            run_one,
+            on_progress=lambda done, total: log_run_progress(logger, done, total),
         )
 
     aggregate = build_run_aggregate(run_name, args, load_run_results(run_dir), exclusions)

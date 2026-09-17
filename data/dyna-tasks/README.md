@@ -19,7 +19,14 @@
   2. BestBuy speakers（`om2w_87f4c512`，drafted）— `special/pilot_bestbuy_speakers`
   3. AKC hairless breeds（`om2w_eb2db4b7`，accepted）— `special/pilot_akc_hairless_breed`
   4. TED robots talks（`om2w_bb5d90e6`，accepted）— `special/pilot_ted_robots`；Topics facet + 时长换桶 conditional
-- `batches/batch0/tasks.jsonl`：上述 4 seed × 3 变体，共 12 条可运行任务
+- Batch0 M2W2 seeds（`seeds/batch0_m2w2.jsonl`，4 个齐）：
+  1. Cleveland Museum Chinese objects（`m2w2_cleveland_museum`，drafted）— `special/pilot_cleveland_museum`；date pair `mic_051`
+  2. HuggingFace English VQA datasets（`m2w2_hf_vqa_dataset`，drafted）— `special/pilot_hf_vqa_dataset`；size pair `mic_057`
+  3. DC Comics Injustice / Batman（`m2w2_dc_comics_injustice`，drafted）— `special/pilot_dc_comics_injustice`
+  4. arXiv web-agent papers（`m2w2_search_summarize_arxiv`，drafted）— `special/pilot_search_summarize_arxiv`；date window 2025 vs 2024
+- `batches/batch0/tasks.jsonl`：OM2W 4 + M2W2 4 个 seed × 3 变体，共 24 条可运行任务
+
+M2W2 四条 family 的写法：共享 i0；override/conditional 只占一轮；构造前用 BrowserGym 探站。相对时间冻成绝对窗口（arXiv「last year」→ 2025-01–09）。淘汰站不要只信 pipeline 首页或过期 stealth 记录。
 
 ## Seed 记录字段（`seeds/*.jsonl`）
 

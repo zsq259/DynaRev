@@ -22,7 +22,7 @@ from typing import Any, Dict, Optional
 
 from openai import OpenAI
 
-from ..utils.llm import llm_call, try_parse_json
+from ..utils.llm import llm_json_call
 from .errors import evaluator_error
 
 _AXTREE_LIMIT = 20000
@@ -133,17 +133,13 @@ def simple_verify(
     )
 
     try:
-        raw = llm_call(
+        payload = llm_json_call(
             client=client,
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_prompt},
-            ],
+            system=system_msg,
+            user=user_prompt,
             model=model,
-            temperature=0.0,
             max_tokens=400,
         )
-        payload = try_parse_json(raw)
     except Exception as exc:
         raise evaluator_error("simple constraint verification failed", exc) from exc
 
@@ -218,17 +214,13 @@ def verify_branch_condition(
     )
 
     try:
-        raw = llm_call(
+        payload = llm_json_call(
             client=client,
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_prompt},
-            ],
+            system=system_msg,
+            user=user_prompt,
             model=model,
-            temperature=0.0,
             max_tokens=400,
         )
-        payload = try_parse_json(raw)
     except Exception as exc:
         raise evaluator_error("branch condition verification failed", exc) from exc
 
@@ -367,17 +359,13 @@ def verify_claim_on_frame(
     )
 
     try:
-        raw = llm_call(
+        payload = llm_json_call(
             client=client,
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_prompt},
-            ],
+            system=system_msg,
+            user=user_prompt,
             model=model,
-            temperature=0.0,
             max_tokens=400,
         )
-        payload = try_parse_json(raw)
     except Exception as exc:
         raise evaluator_error("page evidence verification failed", exc) from exc
 

@@ -85,7 +85,8 @@ class ReActStrategy(ReasoningStrategy):
     _SUFFIX = (
         "\n\nBefore each action, reason about what to do next. "
         'Output exactly one line starting with "Thought:" followed by your '
-        "reasoning, then output the action call on the next line."
+        "reasoning, then put the single action call in an ```action fence. "
+        "Do not put the action on a bare line."
     )
 
     def get_system_prompt_suffix(self) -> str:

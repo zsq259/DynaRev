@@ -2,6 +2,7 @@
 
 Each preset is a validated combination of the three policy dimensions:
 - history_policy: "full" | "kill"
+  (full keeps all actions/thoughts/revisions and the last K page snapshots)
 - revision_policy: "append" | "reset"
 - instruction_policy: "structured" | "rewrite"
 
@@ -26,14 +27,14 @@ class AgentPreset:
 PRESETS: Dict[str, AgentPreset] = {
     "baseline": AgentPreset(
         key="baseline",
-        description="[保留+保留+多条] 完整版：完整对话历史 + 浏览器不重置 + 多条指令逐条呈现",
+        description="[保留+保留+多条] 完整版：全部动作/修订 + 最近 K 页 + 浏览器不重置 + 多条指令逐条呈现",
         history_policy="full",
         revision_policy="append",
         instruction_policy="structured",
     ),
     "merge": AgentPreset(
         key="merge",
-        description="[保留+保留+合并] 完整对话历史 + 浏览器不重置 + 指令 LLM 合并为一条",
+        description="[保留+保留+合并] 全部动作/修订 + 最近 K 页 + 浏览器不重置 + 指令 LLM 合并为一条",
         history_policy="full",
         revision_policy="append",
         instruction_policy="rewrite",

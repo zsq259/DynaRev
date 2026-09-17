@@ -10,6 +10,60 @@ from __future__ import annotations
 from typing import Dict, List
 
 
+PAGE_CONTENT_MARKER = "PAGE CONTENT:"
+OMITTED_PAGE_CONTENT = "[Page observation omitted; subsequent action retained]"
+
+
+def is_observation_message(content: str) -> bool:
+    """True when a user turn carries a page snapshot (not a revision/correction)."""
+    return PAGE_CONTENT_MARKER in content
+
+
+def elide_page_content(content: str) -> str:
+    """Replace the PAGE CONTENT block; keep instructions, URL, and errors."""
+    idx = content.find(PAGE_CONTENT_MARKER)
+    if idx < 0:
+        return content
+    return content[:idx] + OMITTED_PAGE_CONTENT
+
+
+def elide_old_observations(
+    messages: List[Dict[str, str]],
+    keep: int,
+) -> List[Dict[str, str]]:
+    """Keep the last ``keep`` observation user turns intact; elide earlier pages.
+
+    Assistant turns, revision injections, and correction prompts are never elided.
+    ``keep`` counts observation user messages from the end of ``messages``,
+    including the current page.
+    """
+    if keep < 1:
+        raise ValueError(f"observation keep must be >= 1, got {keep}")
+
+    observation_indexes = [
+        i
+        for i, message in enumerate(messages)
+        if message.get("role") == "user"
+        and is_observation_message(message.get("content") or "")
+    ]
+    if len(observation_indexes) <= keep:
+        return [dict(message) for message in messages]
+
+    drop = set(observation_indexes[:-keep])
+    clipped: List[Dict[str, str]] = []
+    for i, message in enumerate(messages):
+        if i in drop:
+            clipped.append(
+                {
+                    "role": "user",
+                    "content": elide_page_content(message["content"]),
+                }
+            )
+        else:
+            clipped.append(dict(message))
+    return clipped
+
+
 class ConversationHistory:
     """Manages conversation messages for a single task episode.
 
@@ -19,11 +73,21 @@ class ConversationHistory:
       never mutates internal state
     """
 
-    def __init__(self, system_content: str, history_policy: str = "full") -> None:
+    def __init__(
+        self,
+        system_content: str,
+        history_policy: str = "full",
+        observation_keep: int = 5,
+    ) -> None:
         if history_policy not in ("full", "kill"):
             raise ValueError(f"Unsupported history_policy: {history_policy}")
+        if observation_keep < 1:
+            raise ValueError(
+                f"observation_keep must be >= 1, got {observation_keep}"
+            )
         self._system_content = system_content
         self._policy = history_policy
+        self._observation_keep = observation_keep
         self._full_log: List[Dict[str, str]] = []
 
     # ------------------------------------------------------------------
@@ -52,16 +116,20 @@ class ConversationHistory:
     ) -> List[Dict[str, str]]:
         """Return the message list to send to the policy model.
 
-        In 'full' mode: system + all recorded turns + current user message.
+        In 'full' mode: system + all recorded turns + current user message,
+        with page snapshots older than the last ``observation_keep`` replaced
+        by a placeholder (actions, thoughts, and revision injections stay).
         In 'kill' mode: system + current user message only.
         """
         ctx: List[Dict[str, str]] = [
             {"role": "system", "content": self._system_content}
         ]
-        if self._policy == "full":
-            ctx.extend(self._full_log)
+        if self._policy == "kill":
+            ctx.append({"role": "user", "content": current_user_msg})
+            return ctx
+        ctx.extend(self._full_log)
         ctx.append({"role": "user", "content": current_user_msg})
-        return ctx
+        return elide_old_observations(ctx, self._observation_keep)
 
     # ------------------------------------------------------------------
     # Reset
@@ -78,6 +146,10 @@ class ConversationHistory:
     @property
     def policy(self) -> str:
         return self._policy
+
+    @property
+    def observation_keep(self) -> int:
+        return self._observation_keep
 
     def get_full_log(self) -> List[Dict[str, str]]:
         return list(self._full_log)

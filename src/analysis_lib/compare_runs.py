@@ -33,6 +33,17 @@ def eval_info(task_summary: Dict[str, Any]) -> Dict[str, Any]:
     return task_summary.get("_evaluation") or {}
 
 
+def is_excluded_from_official(task_summary: Dict[str, Any]) -> bool:
+    info = eval_info(task_summary)
+    status = str(info.get("eval_status") or "")
+    if info.get("exclude_from_official") or status in {
+        "environment_error",
+        "evaluator_error",
+    }:
+        return True
+    return completion_status(task_summary) == "environment_error"
+
+
 def completion_status(task_summary: Dict[str, Any]) -> str:
     status = task_summary.get("completion_status")
     if status:
@@ -73,13 +84,16 @@ def resolve_compare_ids(run_data: Dict[str, Dict[str, Dict[str, Any]]], id_mode:
 
 def build_aggregate(items: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     arr = list(items.values())
-    n = len(arr)
-    correct_count = sum(1 for x in arr if bool(eval_info(x).get("is_correct", False)))
+    scored = [x for x in arr if not is_excluded_from_official(x)]
+    n = len(scored)
+    correct_count = sum(1 for x in scored if bool(eval_info(x).get("is_correct", False)))
     avg_correctness_score = (
-        sum(float(eval_info(x).get("correctness_score", 0.0)) for x in arr) / n if n else 0.0
+        sum(float(eval_info(x).get("correctness_score", 0.0) or 0.0) for x in scored) / n
+        if n
+        else 0.0
     )
-    avg_steps = sum(int(x.get("steps", 0)) for x in arr) / n if n else 0.0
-    done_called_count = sum(1 for x in arr if bool(x.get("done_called", False)))
+    avg_steps = sum(int(x.get("steps", 0)) for x in scored) / n if n else 0.0
+    done_called_count = sum(1 for x in scored if bool(x.get("done_called", False)))
     submitted_count = sum(1 for x in arr if completion_status(x) == "submitted")
 
     stop_reason_counts: Dict[str, int] = {}
@@ -96,7 +110,9 @@ def build_aggregate(items: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
             error_category_counts[category] = error_category_counts.get(category, 0) + 1
 
     return {
-        "task_count": n,
+        "task_count": len(arr),
+        "scored_task_count": n,
+        "excluded_count": len(arr) - n,
         "correct_count": correct_count,
         "correct_rate": (correct_count / n) if n else 0.0,
         "avg_correctness_score": avg_correctness_score,
@@ -157,8 +173,19 @@ def write_task_matrix_csv(
                 if not row["website"]:
                     row["website"] = summary.get("website", "")
 
+                if is_excluded_from_official(summary):
+                    status = str(eval_info(summary).get("eval_status") or "") or completion_status(summary)
+                    row[f"{label}_is_correct"] = ""
+                    row[f"{label}_score"] = ""
+                    row[f"{label}_steps"] = int(summary.get("steps", 0))
+                    row[f"{label}_completion_status"] = status
+                    row[f"{label}_stop"] = str(summary.get("stopped_reason", ""))
+                    row[f"{label}_error_category"] = str(summary.get("error_category") or "")
+                    row[f"{label}_done_called"] = int(bool(summary.get("done_called", False)))
+                    continue
+
                 row[f"{label}_is_correct"] = int(bool(eval_info(summary).get("is_correct", False)))
-                row[f"{label}_score"] = float(eval_info(summary).get("correctness_score", 0.0))
+                row[f"{label}_score"] = float(eval_info(summary).get("correctness_score", 0.0) or 0.0)
                 row[f"{label}_steps"] = int(summary.get("steps", 0))
                 row[f"{label}_completion_status"] = completion_status(summary)
                 row[f"{label}_stop"] = str(summary.get("stopped_reason", ""))
@@ -187,8 +214,10 @@ def build_pairwise_score_wlt(
                 b = run_data[rb].get(instance_id)
                 if a is None or b is None:
                     continue
-                score_a = float(eval_info(a).get("correctness_score", 0.0))
-                score_b = float(eval_info(b).get("correctness_score", 0.0))
+                if is_excluded_from_official(a) or is_excluded_from_official(b):
+                    continue
+                score_a = float(eval_info(a).get("correctness_score", 0.0) or 0.0)
+                score_b = float(eval_info(b).get("correctness_score", 0.0) or 0.0)
                 if score_a > score_b:
                     win += 1
                 elif score_a < score_b:

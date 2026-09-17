@@ -20,7 +20,7 @@ from browsergym.core.env import BrowserEnv
 from browsergym.utils.obs import flatten_axtree_to_str
 from openai import OpenAI
 
-from .action_parser import ACTION_PATTERN, extract_action
+from .action_parser import ACTION_PATTERN
 from .env_manager import EnvironmentManager
 from .history import ConversationHistory
 from .instructions import InstructionComposer, InstructionSnapshot
@@ -138,6 +138,7 @@ class AgentRunner:
         self._history = ConversationHistory(
             system_content=system_content,
             history_policy=getattr(args, "history_policy", "full"),
+            observation_keep=int(getattr(args, "history_obs_keep", 5)),
         )
         self._env_manager = EnvironmentManager(task, args)
         self._composer = InstructionComposer(
@@ -425,7 +426,8 @@ class AgentRunner:
         parts = [
             f"CURRENT INSTRUCTIONS (ALL active):\n{snapshot.text}",
             f"CURRENT URL: {url}",
-            "DECISION CHECKPOINT: If all active instructions are satisfied now, call send_msg_to_user('done: ...').",
+            "DECISION CHECKPOINT: If all active instructions are satisfied now, "
+            "put send_msg_to_user('done: ...') inside an ```action fence.",
         ]
         if last_error:
             parts.append(f"LAST ERROR: {last_error}")
@@ -442,8 +444,9 @@ class AgentRunner:
         thought: Optional[str],
     ) -> Tuple[str, str, Optional[str]]:
         correction = (
-            "ERROR: output one valid action call as the final line only. "
-            'Example: click("42")'
+            "ERROR: wrap exactly one BrowserGym call in an ```action fence. "
+            "Do not use XML, DSML, JSON, unlabeled fences, or a bare last-line call. "
+            "Example:\n\n```action\nclick(\"42\")\n```"
         )
         retry_msgs = list(api_messages) + [
             {"role": "assistant", "content": raw},
@@ -567,6 +570,7 @@ class AgentRunner:
             "website": task.source.get("website"),
             "policy_model": args.policy_model,
             "history_policy": getattr(args, "history_policy", "full"),
+            "history_obs_keep": int(getattr(args, "history_obs_keep", 5)),
             "revision_policy": getattr(args, "revision_policy", "append"),
             "instruction_policy": self._composer.policy,
             "instruction_rewrite_model": args.policy_model if self._composer.policy == "rewrite" else None,

@@ -194,16 +194,21 @@ def llm_call(
     retries: int = 3,
     reasoning_effort: str = "high",
     usage_tag: str = "unspecified",
+    allow_reasoning_fallback: bool = True,
+    thinking: Optional[bool] = None,
 ) -> str:
     """General-purpose LLM call with retry logic and DeepSeek thinking support.
 
     - DeepSeek models: enables thinking mode via extra_body, skips temperature,
       increases max_tokens, handles reasoning_content fallback, strips <think>
-      blocks.
+      blocks. Pass ``thinking=False`` to disable thinking for this call.
     - Non-DeepSeek models: standard call with temperature.
     - Retries with exponential backoff on failure.
     - When a ``TokenUsageMeter`` is bound via ``using_token_meter``, records
       prompt/completion/total tokens under ``usage_tag``.
+    - ``allow_reasoning_fallback``: if content is empty, parse
+      ``reasoning_content`` (policy/agent). JSON judges should pass False
+      and retry the call instead of treating a CoT dump as the answer.
     """
     is_deepseek = _is_deepseek_model(model)
 
@@ -217,8 +222,13 @@ def llm_call(
     )
 
     if is_deepseek:
-        kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
-        kwargs["reasoning_effort"] = reasoning_effort
+        enable_thinking = True if thinking is None else thinking
+        if enable_thinking:
+            kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+            kwargs["reasoning_effort"] = reasoning_effort
+        else:
+            kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+            kwargs["temperature"] = temperature
     else:
         kwargs["temperature"] = temperature
 
@@ -234,12 +244,19 @@ def llm_call(
 
             # DeepSeek thinking mode may put content in reasoning_content
             if not raw and hasattr(msg, "reasoning_content") and msg.reasoning_content:
-                logger.warning(
-                    "LLM returned empty content (reasoning_content length=%d). "
-                    "Attempting to parse reasoning_content as fallback.",
-                    len(msg.reasoning_content),
-                )
-                raw = msg.reasoning_content.strip()
+                if allow_reasoning_fallback:
+                    logger.warning(
+                        "LLM returned empty content (reasoning_content length=%d). "
+                        "Attempting to parse reasoning_content as fallback.",
+                        len(msg.reasoning_content),
+                    )
+                    raw = msg.reasoning_content.strip()
+                else:
+                    logger.warning(
+                        "LLM returned empty content (reasoning_content length=%d). "
+                        "Not using reasoning_content as the answer.",
+                        len(msg.reasoning_content),
+                    )
 
             # Safe for all providers and needed for Qwen endpoints that return
             # an orphan closing </think> tag in message.content.
@@ -261,28 +278,62 @@ def llm_json_call(
     temperature: float = 0.0,
     max_tokens: int = 2048,
     reasoning_effort: str = "high",
+    parse_retries: int = 3,
 ) -> Dict[str, Any]:
     """Call LLM and parse the response as JSON.
 
-    Uses llm_call() under the hood, then applies dual JSON extraction:
-    try_parse_json first, then find_last_json_object as fallback.
+    Failed parses discard the bad output and retry from the original
+    messages. Empty ``content`` is not filled in from thinking/CoT.
+    After the first failed attempt on a DeepSeek model, thinking is
+    disabled so the next try can emit JSON in ``content``.
     """
     messages = [
         {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]
-    raw = llm_call(
-        client=client,
-        messages=messages,
-        model=model,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        reasoning_effort=reasoning_effort,
-    )
-
-    # Try simple extraction first, fall back to multi-object scanning
-    try:
-        return try_parse_json(raw)
-    except (json.JSONDecodeError, ValueError):
-        logger.debug("Simple JSON parse failed, trying multi-object scan")
-        return find_last_json_object(raw)
+    last_err: Exception | None = None
+    for attempt in range(1, parse_retries + 1):
+        thinking = False if attempt > 1 and _is_deepseek_model(model) else None
+        try:
+            raw = llm_call(
+                client=client,
+                messages=messages,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                reasoning_effort=reasoning_effort,
+                retries=1,
+                allow_reasoning_fallback=False,
+                thinking=thinking,
+            )
+        except Exception as exc:
+            last_err = exc
+            logger.warning(
+                "JSON_CALL_RETRY | attempt=%d/%d | llm_call failed: %s",
+                attempt,
+                parse_retries,
+                exc,
+            )
+            continue
+        if not raw.strip():
+            last_err = ValueError("empty model content (no JSON)")
+            logger.warning(
+                "JSON_CALL_RETRY | attempt=%d/%d | empty content",
+                attempt,
+                parse_retries,
+            )
+            continue
+        try:
+            return try_parse_json(raw)
+        except (json.JSONDecodeError, ValueError):
+            try:
+                return find_last_json_object(raw)
+            except (json.JSONDecodeError, ValueError) as exc:
+                last_err = exc
+                logger.warning(
+                    "JSON_CALL_RETRY | attempt=%d/%d | %s",
+                    attempt,
+                    parse_retries,
+                    exc,
+                )
+    raise last_err or ValueError("JSON parse failed")
