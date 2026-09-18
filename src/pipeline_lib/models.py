@@ -48,38 +48,42 @@ class MultiturnResult:
 class SwitchingCondition:
     """Page-observable condition attached to a conditional override.
 
-    Step 3a picks the dimension/threshold/unit from
-    ``data/pipeline/switching_conditions.yaml`` based on the pair dimension and
-    task scene. ``condition_text`` is filled later by Step 3b's LLM —
-    it writes a clean predicate that the evaluator will use against
-    the agent's done_message.
+    Step 3b picks ``dimension`` from {count, price, rating, time} and fills
+    operator / threshold / unit. ``condition_text`` is the evaluator predicate
+    written in the same call.
     """
-    dimension: str           # e.g. "price_diff", "availability_fail"
-    operator: str            # ">", "<", ">=", "<=", "==true"
+    dimension: str           # "count" | "price" | "rating" | "time"
+    operator: str            # ">", "<", ">=", "<="
     threshold: Optional[float] = None
     unit: str = ""
-    default_option: str = ""    # original (default-branch) constraint summary, fed to LLM
-    alt_option: str = ""        # alternative (alt-branch) constraint summary, fed to LLM
+    default_option: str = ""    # original (default-branch) constraint summary
+    alt_option: str = ""        # alternative (alt-branch) constraint summary
     condition_text: str = ""    # natural-language predicate, written by Step 3b LLM
 
 
 @dataclass
 class OverrideItem:
-    """Single override replacement decision from Step 3a."""
+    """One (constraint, replacement pair) item.
+
+    Step 3a puts cosine-passing items in ``OverridePlanResult.candidates``.
+    Step 3b copies the chosen item into ``overrides``.
+    """
     target_constraint_id: int
     replacement_pair_id: str
     target_constraint_text: str = ""
     replacement_constraint_text: str = ""
     dimension: str = ""
+    score: float = 0.0
     # Conditional override only: present when override_mode == "conditional"
     switching_condition: Optional[SwitchingCondition] = None
 
 
 @dataclass
 class OverridePlanResult:
-    """Step 3a output: whether to apply override and which constraints to replace."""
+    """Step 3a candidate pool; Step 3b fills ``overrides`` after LLM selection."""
     enable_override: bool
     overrides: List[OverrideItem] = field(default_factory=list)
+    candidates: List[OverrideItem] = field(default_factory=list)
     # "unconditional" (legacy default) | "conditional"
     override_mode: str = "unconditional"
 

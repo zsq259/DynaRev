@@ -457,7 +457,7 @@ class AgentRunner:
             messages=retry_msgs,
             model=self._args.policy_model,
             temperature=self._args.temperature,
-            max_tokens=256,
+            max_tokens=self._args.max_tokens,
             usage_tag="policy_retry",
         )
         action_retry, thought_retry = self._reasoning.process_output(raw_retry)

@@ -654,106 +654,166 @@ realistic preference change a user might make."""
 
 STEP3_OVERRIDE_SYSTEM = (
     "You are an expert at designing natural multi-turn user interactions for GUI tasks. "
-    "Your job is to arrange a list of constraints into a natural multi-turn instruction "
-    "sequence, simulating how a real user would progressively refine their request "
-    "during task execution. "
-    "For each subsequent instruction, you also define a milestone "
-    "that determines when it should be injected. "
-    "In override mode, you must incorporate override revisions according to the given override plan."
+    "Arrange extracted constraints into a realistic timeline, with a milestone "
+    "for each turn after I0. Pick at most one pair from the candidate list. "
+    "Follow the override_mode section exactly."
 )
 
-STEP3_OVERRIDE_USER = """\
-Given the original task instruction, extracted constraints, pre-designed I0, and override plan, \
-generate a complete multi-turn instruction sequence with milestones.
+STEP3_OVERRIDE_UNCONDITIONAL_BLOCK = """\
+## Override mode: unconditional
 
-## Part 1: Instruction Sequence
+Pick one candidate. Write one `type="override"` turn that switches that target \
+to that replacement. No if-clause. Other turns are `type="additive"`.
 
-**I0:**
-- Already provided — do not modify it
+`selected` has only:
+- `target_constraint_id` / `replacement_pair_id` copied from one candidate row
 
-**Subsequent instructions:**
-- Design a natural timeline of user intent updates. Later instructions can add, refine, or override earlier intent.
-- Keep the sequence realistic: each turn should sound like what a user would say after seeing progress.
-- Group information naturally; avoid splitting one tiny idea into many turns.
-- For composite constraints (including OR/AND relations), keep the logic intact when introducing or modifying them.
-- Include override revisions exactly according to override_plan.
-- Interpret override as **goal transition** over time: a later instruction changes the earlier target for the same dimension.
-- For each override item, write an override instruction that clearly communicates this transition from `target_constraint` to `replacement_constraint`.
-- Do not rewrite an override into a generic relaxation (for example: "any is fine", "remove filter", "don't care") when a concrete replacement target is provided.
-- `type="override"` should appear on the instruction that performs this transition. Other turns should use `type="additive"`.
+If no candidate is a natural preference change, return `"enable_override": false`.
 
-**Conditional override mode** (when override_plan.override_mode == "conditional"):
-- Each override item carries a `switching_condition` with structured fields: `dimension`, `operator`, `threshold`, `unit`, `default_option`, `alt_option`. Use these to compose the conditional clause; do not rely on a pre-rendered template.
-- The revision must (1) acknowledge or restate the original preference (default branch), (2) state the page-observable condition with the concrete threshold, unit, and comparison direction from `switching_condition`, and (3) state the alternative as accepted ONLY when the condition holds. The user is softening a preference, not switching to a new requirement.
-- Threshold values, units, and the comparison direction must match `switching_condition` exactly. Phrasing is yours; numbers are not.
-- For price-based conditions, infer a sensible currency from the task's website / scene if `unit` is empty (e.g. US sites → USD, UK → GBP, CN → RMB). Always include a currency.
-- Set `type="conditional_override"` on this revision (NOT "override").
-- The milestone for the conditional revision should mark "the user has seen results filtered to the original preference" — i.e. the agent has acted on the default branch and now has page evidence to evaluate the condition against.
+Good: "Actually, change the color to blue instead. Keep the other criteria the same."
+Bad: "Color doesn't matter anymore." / "If it's expensive, blue is fine."
 
-For each `type="conditional_override"` instruction, also output a `condition_text` field — a clean, single-sentence predicate that the evaluator will check against the agent's done_message at runtime. Requirements for `condition_text`:
-- objective predicate, no user voice ("I want", "show me")
-- includes the threshold, unit, and comparison direction from `switching_condition`
-- short and unambiguous; clarity matters more than naturalness
-- Example: `"the cheapest black sofa costs at least 500 USD more than the cheapest blue sofa with the same criteria"`
+Example (duration 6–12 min → 12–18 min). Copy real candidate ids in your output; \
+do not reuse the example ids.
 
-Conditional override examples (target → replacement, condition):
+```json
+{
+  "enable_override": true,
+  "selected": {
+    "target_constraint_id": 3,
+    "replacement_pair_id": "from_a_candidate_row"
+  },
+  "instructions": [
+    {"id": 0, "instruction": "Find me a TED talk on the topic of robots that lasts 6 to 12 minutes."},
+    {"id": 1, "instruction": "Actually, change the duration to 12 to 18 minutes instead. Keep the topic the same, and pick the most viewed one.",
+     "milestone": "The search context for TED talks on the topic of robots with a duration preference is established.",
+     "type": "override"}
+  ]
+}
+```
+"""
+
+STEP3_OVERRIDE_CONDITIONAL_BLOCK = """\
+## Override mode: conditional
+
+Pick one candidate. The default stays A. B is accepted only when a page-observable \
+condition holds:
+
+  (QUANTITY) ( > or < ) (NUMBER)
+
+QUANTITY is one of:
+- count  — how many results match the default. `< 1` means none available; a larger \
+NUMBER means too few. If the task asks for K items, K is a reasonable NUMBER.
+- price  — a listed price or price gap (include a currency)
+- rating — stars, rank, or similar score
+- time   — duration, or age / recency on the page
+
+Choose QUANTITY from what this website can actually show. Candidate \
+`pair_dimension` is the pair's own axis (color, year, …), not QUANTITY.
+
+Do not restate the A/B pair as the condition. If the pair itself is a quota \
+(find 10 vs find 5), "not enough matching results" is a valid count condition.
+
+Fill NUMBER from the task.
+
+The revision must keep A as the default, state the condition with the concrete \
+number, and accept B only if the condition holds. `type="conditional_override"`. \
+Also set `condition_text` on that turn: one predicate sentence using the same \
+number and comparison.
+
+Milestone: the default preference has been applied, including empty or short lists.
+
+If no candidate fits, or no QUANTITY is observable here, return \
+`"enable_override": false`. Do not write a flat override.
+
+`selected` fields:
+- `target_constraint_id` / `replacement_pair_id` copied from one candidate row
+- `quantity`: count | price | rating | time
+- `operator`: > or <
+- `threshold`: the NUMBER
+- `unit`: e.g. USD, or "" 
+
+Copy real candidate ids in your output; do not reuse the example ids.
+
+Examples (target → replacement, condition):
 - target="Selected flight is non-red-eye", replacement="Selected flight is red-eye",
-  condition_text="if non-red-eye flights are at least 500 RMB more expensive than the cheapest red-eye"
+  quantity=price, operator=">", threshold=500, unit="RMB"
   Good: "I prefer no red-eye flights. But if non-red-eye flights are at least 500 RMB more expensive than the cheapest red-eye, red-eye is acceptable."
-  Bad: "Actually, switch to red-eye." (unconditional — no condition)
-  Bad: "If it's expensive, red-eye is fine." (vague — must keep concrete threshold)
+  Bad: "Actually, switch to red-eye." (flat override — no condition)
+  Bad: "If it's expensive, red-eye is fine." (vague — must keep a concrete number)
 - target="Color must be black", replacement="Color must be white",
-  condition_text="but if no black option is available"
+  quantity=count, operator="<", threshold=1
   Good: "I want a black sofa. But if no black option is available, white is also fine."
+- target="Comics must feature Batman", replacement="Comics need not feature Batman",
+  quantity=count, operator="<", threshold=2
+  Good: "I prefer keeping the Batman requirement. If fewer than two such comics are listed, drop the Batman filter."
 
-Override instruction examples (target -> replacement):
-- Color must be black -> Color must be blue
-  Good: "Actually, change the color to blue instead. Keep the other criteria the same."
-  Bad: "Color doesn't matter anymore."
-- Seller must be official store -> Seller must be marketplace seller
-  Good: "Switch this to marketplace sellers instead of official stores."
-  Bad: "Try a different seller."
-- Price must be under $50 -> Price must be under $80
-  Good: "Let's relax the budget to under $80 while keeping the rest unchanged."
-  Bad: "Increase budget a bit."
+Full timeline:
 
-**Style:**
-- All instructions should be written in natural user voice, as if the user is speaking directly
-- Use phrasing like "Show me...", "Only show...", "Now set..." rather than task description style
+```json
+{
+  "enable_override": true,
+  "selected": {
+    "target_constraint_id": 3,
+    "replacement_pair_id": "from_a_candidate_row",
+    "quantity": "count",
+    "operator": "<",
+    "threshold": 2,
+    "unit": ""
+  },
+  "instructions": [
+    {"id": 0, "instruction": "On DC.com, find Injustice: Gods Among Us Year One and other comic books by the same author."},
+    {"id": 1, "instruction": "Only keep ones that feature Batman.",
+     "milestone": "The DC.com search for Injustice: Gods Among Us Year One and other comic books by the same author is established.",
+     "type": "additive"},
+    {"id": 2, "instruction": "I prefer keeping the Batman requirement. If fewer than two such comics are listed, drop the Batman filter and keep comics by that author.",
+     "milestone": "The search for comics by the Year One author is being carried out under the Batman-feature criterion.",
+     "type": "conditional_override",
+     "condition_text": "DC.com results for comic books by the same author as Injustice: Gods Among Us Year One that feature Batman list fewer than 2 comics besides Year One."},
+    {"id": 3, "instruction": "I want three of them, each from a different series, and not Injustice: Gods Among Us Year One itself.",
+     "milestone": "The working search for comics by the Year One author follows the character branch: the Batman requirement remains after the default match count is known, or the Batman filter has been dropped.",
+     "type": "additive"},
+    {"id": 4, "instruction": "Give the DC.com page link for Year One and for each of those three comics.",
+     "milestone": "Three comics by that author, from different series and excluding Injustice itself, are being identified on the working character branch.",
+     "type": "additive"}
+  ]
+}
+```
+"""
 
-## Part 2: Milestones
+STEP3_OVERRIDE_USER = """\
+Given the original task, constraints, I0, website, and override candidates, \
+write a multi-turn instruction sequence with milestones.
 
-For each instruction i_k (k >= 1), define a milestone that triggers its injection.
+**I0:** already provided — do not modify it.
 
-A milestone is a **branch-robust semantic task state** reached after correctly completing \
-i0 through i_{{k-1}}. It should describe user-visible task progress, not UI mechanics or \
-system internals.
+**Later turns:**
+- Sound like a user refining the request after seeing progress.
+- Group information naturally; do not split one idea across turns.
+- Keep composite AND/OR constraints intact.
+- If `"enable_override": true`, pick exactly one row from `override_candidates` \
+and copy its `target_constraint_id` and `replacement_pair_id` into `selected`. \
+Do not invent a pair or an id.
+- Do not rewrite a replacement into "any is fine" / "remove the filter" / "don't care".
 
-How to produce each milestone:
-1. Summarize what prior instructions have semantically established (intent/state, not actions).
-2. Phrase that as a user-understandable task state that remains valid across common branches \
-  (including empty-result branches).
-3. Check two conditions: (a) saying i_k at this state would not feel abrupt for the user, and (b) among stages satisfying (a), this is an earlier one that is reliably reachable by diverse agent trajectories.
+{mode_block}
 
-Quality guidance:
-- Derive milestone only from i0..i_{{k-1}}; never leak content from i_k.
-- Prefer semantic state wording over UI-surface wording.
-- Avoid implementation-specific language such as "system processed/registered/executed...".
-- A milestone should hold across all branches that correct prior execution can produce. When a concrete phrasing like "X is displayed" is branch-robust for this task, use it; otherwise phrase more general.
-- Necessity is a baseline, not a goal — multiple stages on a correct completion path usually satisfy it. Prefer an earlier candidate over one that restates i0's full terminal condition, since the latter collapses the milestone into an i0-completion check.
+**Style:** natural user voice ("Show me…", "Only show…", "Now set…").
 
-Examples illustrating the principle:
-- "The search has been constrained to the previously requested criteria, including cases with zero matches" — rather than "A non-empty result list is displayed".
-- "The query scope defined by prior constraints is established" — rather than "The system has registered the user's criteria".
-- "The sofa browsing context is active with black leather candidates visible among current results" — rather than "A filtered list of black leather sofas with three seats is displayed".
-- "Eligibility criteria for child benefit are displayed" — on a static info page where the content always renders, the concrete phrasing is itself branch-robust.
+## Milestones
 
-Override insertion timing guidance:
+Each i_k (k >= 1) needs a milestone: a branch-robust semantic state after \
+correctly completing i0..i_{{k-1}}. User-visible progress, not UI clicks. \
+Derive it only from prior turns; never leak i_k. It must remain valid on \
+empty-result branches. Prefer an earlier reachable state over restating i0's \
+final goal.
+
+Override insertion timing:
 {override_timing_guidance}
 
 {previous_step4_context}
 
-{retry_reflection_context}
+Website: {website}
 
 Original instruction: {original_instruction}
 
@@ -762,63 +822,13 @@ Constraints:
 
 I0: {i0}
 
-Override plan:
-{override_plan}
+Override candidates (each row is one constraint + replacement; \
+`pair_dimension` is the pair's axis, not a switching quantity):
+{override_candidates}
 
-Here are some examples:
-
-**Example 1 (override_mode = unconditional):**
-Original instruction: `Find the most viewed TED talk on the topic of robots that lasts between 12 and 18 minutes.`
-I0: `Find me a TED talk on the topic of robots that lasts 6 to 12 minutes.`
-Override plan: duration 6–12 minutes → 12–18 minutes.
-
-```json
-{{
-  "instructions": [
-    {{"id": 0, "instruction": "Find me a TED talk on the topic of robots that lasts 6 to 12 minutes."}},
-    {{"id": 1, "instruction": "Actually, change the duration to 12 to 18 minutes instead. Keep the topic the same, and pick the most viewed one.",
-     "milestone": "The search context for TED talks on the topic of robots with a duration preference is established.",
-     "type": "override"}}
-  ]
-}}
-```
-
-**Example 2 (override_mode = conditional):**
-Original instruction: `I am a DC Comics fan. Could you find three comic books from different series written by the same author as Injustice: Gods Among Us Year One that feature Batman (excluding Injustice itself)? Please provide the links to the homepage of Injustice and these comic books on DC comic's official website.`
-I0: `On DC.com, find Injustice: Gods Among Us Year One and other comic books by the same author.`
-Override plan: keep Batman as the default; if fewer than 2 matching comics are listed, drop the Batman filter.
-
-```json
-{{
-  "instructions": [
-    {{"id": 0, "instruction": "On DC.com, find Injustice: Gods Among Us Year One and other comic books by the same author."}},
-    {{"id": 1, "instruction": "Only keep ones that feature Batman.",
-     "milestone": "The DC.com search for Injustice: Gods Among Us Year One and other comic books by the same author is established.",
-     "type": "additive"}},
-    {{"id": 2, "instruction": "I prefer keeping the Batman requirement. If fewer than two such comics are listed, drop the Batman filter and keep comics by that author.",
-     "milestone": "The search for comics by the Year One author is being carried out under the Batman-feature criterion.",
-     "type": "conditional_override",
-     "condition_text": "DC.com results for comic books by the same author as Injustice: Gods Among Us Year One that feature Batman list fewer than 2 comics besides Year One."}},
-    {{"id": 3, "instruction": "I want three of them, each from a different series, and not Injustice: Gods Among Us Year One itself.",
-     "milestone": "The working search for comics by the Year One author follows the character branch: the Batman requirement remains after the default match count is known, or the Batman filter has been dropped.",
-     "type": "additive"}},
-    {{"id": 4, "instruction": "Give the DC.com page link for Year One and for each of those three comics.",
-     "milestone": "Three comics by that author, from different series and excluding Injustice itself, are being identified on the working character branch.",
-     "type": "additive"}}
-  ]
-}}
-```
-
-Note:
+Notes:
 - i0 has no milestone.
-- For i_k (k >= 1), always include "type" as "additive", "override", or "conditional_override".
-- Only `type="conditional_override"` instructions carry `condition_text`.
-
-Before you answer, self-check:
-- Ensure each i_k (k >= 1) milestone is a branch-robust semantic state derived only from prior instructions.
-- Ensure JSON output follows the schema.
-- Ensure each `type: "override"` instruction expresses a clear goal transition from the planned target to the planned replacement.
-- When override_plan.override_mode == "conditional": ensure the override revision uses `type="conditional_override"` AND incorporates the switching_condition's threshold/unit/operator into its text AND includes a clean `condition_text` predicate field.
+- Turns after i0 need `type`.
 
 Output JSON only.
 """

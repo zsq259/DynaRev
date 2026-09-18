@@ -190,7 +190,7 @@ def llm_call(
     messages: List[Dict[str, str]],
     model: str,
     temperature: float = 0.0,
-    max_tokens: int = 1024,
+    max_tokens: int = 16384,
     retries: int = 3,
     reasoning_effort: str = "high",
     usage_tag: str = "unspecified",
@@ -213,7 +213,7 @@ def llm_call(
     is_deepseek = _is_deepseek_model(model)
 
     if is_deepseek:
-        max_tokens = max(max_tokens, 8192)
+        max_tokens = max(max_tokens, 16384)
 
     kwargs: Dict[str, Any] = dict(
         model=model,
@@ -276,7 +276,7 @@ def llm_json_call(
     user: str,
     model: str = "gpt-4o",
     temperature: float = 0.0,
-    max_tokens: int = 2048,
+    max_tokens: int = 16384,
     reasoning_effort: str = "high",
     parse_retries: int = 3,
 ) -> Dict[str, Any]:

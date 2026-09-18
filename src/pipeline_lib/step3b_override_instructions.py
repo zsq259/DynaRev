@@ -1,13 +1,30 @@
-"""Step 3b: generate full override-aware instruction timeline."""
+"""Step 3b: LLM picks one candidate and writes the override timeline."""
 
+import copy
 import json
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from openai import OpenAI
 
 from utils.llm import llm_json_call
-from .models import ConstraintResult, I0Result, Instruction, MultiturnResult, OverridePlanResult
-from .prompts import STEP3_OVERRIDE_SYSTEM, STEP3_OVERRIDE_USER
+from .models import (
+    ConstraintResult,
+    I0Result,
+    Instruction,
+    MultiturnResult,
+    OverrideItem,
+    OverridePlanResult,
+    SwitchingCondition,
+)
+from .prompts import (
+    STEP3_OVERRIDE_CONDITIONAL_BLOCK,
+    STEP3_OVERRIDE_SYSTEM,
+    STEP3_OVERRIDE_UNCONDITIONAL_BLOCK,
+    STEP3_OVERRIDE_USER,
+)
+
+SWITCHING_QUANTITIES = {"count", "price", "rating", "time"}
+SWITCHING_OPERATORS = {">", "<"}
 
 
 def _timing_guidance(insertion_timing: str) -> str:
@@ -24,33 +41,73 @@ def _timing_guidance(insertion_timing: str) -> str:
     raise ValueError(f"Unknown override insertion timing: {insertion_timing}")
 
 
-def _plan_to_prompt_payload(plan: OverridePlanResult) -> Dict[str, Any]:
-    enriched = {
-        "enable_override": plan.enable_override,
-        "override_mode": plan.override_mode,
-        "overrides": [],
+def _candidates_payload(plan: OverridePlanResult) -> Dict[str, Any]:
+    return {
+        "candidates": [
+            {
+                "target_constraint_id": item.target_constraint_id,
+                "target_constraint": item.target_constraint_text,
+                "replacement_pair_id": item.replacement_pair_id,
+                "replacement_constraint": item.replacement_constraint_text,
+                "pair_dimension": item.dimension,
+            }
+            for item in plan.candidates
+        ],
     }
 
-    for item in plan.overrides:
-        entry: Dict[str, Any] = {
-            "target_constraint_id": item.target_constraint_id,
-            "target_constraint": item.target_constraint_text,
-            "replacement_pair_id": item.replacement_pair_id,
-            "replacement_constraint": item.replacement_constraint_text,
-            "dimension": item.dimension,
-        }
-        if item.switching_condition is not None:
-            sc = item.switching_condition
-            entry["switching_condition"] = {
-                "dimension": sc.dimension,
-                "operator": sc.operator,
-                "threshold": sc.threshold,
-                "unit": sc.unit,
-                "condition_text": sc.condition_text,
-            }
-        enriched["overrides"].append(entry)
 
-    return enriched
+def _find_candidate(
+    plan: OverridePlanResult,
+    constraint_id: Any,
+    pair_id: Any,
+) -> Optional[OverrideItem]:
+    if not isinstance(constraint_id, int) or not isinstance(pair_id, str) or not pair_id:
+        return None
+    for item in plan.candidates:
+        if item.target_constraint_id == constraint_id and item.replacement_pair_id == pair_id:
+            return item
+    return None
+
+
+def _parse_threshold(value: Any) -> Optional[float]:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value.strip())
+        except ValueError:
+            return None
+    return None
+
+
+def _attach_conditional_choice(
+    chosen: OverrideItem,
+    selected: Dict[str, Any],
+    condition_text: str,
+) -> None:
+    quantity = str(selected.get("quantity") or "").strip().lower()
+    operator = str(selected.get("operator") or "").strip()
+    threshold = _parse_threshold(selected.get("threshold"))
+    unit = str(selected.get("unit") or "").strip()
+    if quantity not in SWITCHING_QUANTITIES:
+        raise ValueError(f"Invalid switching quantity: {quantity!r}")
+    if operator not in SWITCHING_OPERATORS:
+        raise ValueError(f"Invalid switching operator: {operator!r}")
+    if threshold is None:
+        raise ValueError("Conditional override requires a numeric threshold")
+    if not condition_text:
+        raise ValueError("Conditional override requires condition_text")
+    chosen.switching_condition = SwitchingCondition(
+        dimension=quantity,
+        operator=operator,
+        threshold=threshold,
+        unit=unit,
+        default_option=chosen.target_constraint_text,
+        alt_option=chosen.replacement_constraint_text,
+        condition_text=condition_text,
+    )
 
 
 def generate_override_instructions(
@@ -61,18 +118,26 @@ def generate_override_instructions(
     client: OpenAI,
     model: str = "gpt-4o",
     previous_step4_reason: str | None = None,
-) -> MultiturnResult:
-    """Generate complete instruction timeline for override mode."""
-    if not plan.enable_override or not plan.overrides:
-        raise ValueError("Override plan is disabled or empty")
+    website: str = "",
+) -> Optional[MultiturnResult]:
+    """Pick one candidate and generate the override timeline.
+
+    Mutates ``plan``: fills ``overrides`` on success; sets
+    ``enable_override=False`` when the LLM declines. Returns None when no
+    timeline is produced.
+    """
+    if not plan.candidates:
+        plan.enable_override = False
+        plan.overrides = []
+        return None
 
     constraints_json = json.dumps(
         [{"id": c.id, "description": c.description} for c in constraints.constraints],
         ensure_ascii=False,
         indent=2,
     )
-    override_plan_json = json.dumps(
-        _plan_to_prompt_payload(plan),
+    candidates_json = json.dumps(
+        _candidates_payload(plan),
         ensure_ascii=False,
         indent=2,
     )
@@ -85,14 +150,20 @@ def generate_override_instructions(
             "Regenerate while fixing the above issues."
         )
 
+    if plan.override_mode == "conditional":
+        mode_block = STEP3_OVERRIDE_CONDITIONAL_BLOCK
+    else:
+        mode_block = STEP3_OVERRIDE_UNCONDITIONAL_BLOCK
+
     prompt = STEP3_OVERRIDE_USER.format(
         override_timing_guidance=_timing_guidance(insertion_timing),
         previous_step4_context=previous_context,
-        retry_reflection_context="",
         original_instruction=constraints.original_instruction,
+        website=website or "(not provided)",
         constraints=constraints_json,
         i0=i0.i0,
-        override_plan=override_plan_json,
+        override_candidates=candidates_json,
+        mode_block=mode_block,
     )
 
     payload = llm_json_call(
@@ -100,21 +171,39 @@ def generate_override_instructions(
         system=STEP3_OVERRIDE_SYSTEM,
         user=prompt,
         model=model,
-        max_tokens=2400,
+        max_tokens=3200,
     )
 
+    if payload.get("enable_override") is False:
+        plan.enable_override = False
+        plan.overrides = []
+        return None
+
+    selected = payload.get("selected") or {}
+    if not isinstance(selected, dict):
+        raise ValueError("Override instruction generation returned invalid selected object")
+
+    constraint_id = selected.get("target_constraint_id")
+    if isinstance(constraint_id, str) and constraint_id.strip().lstrip("-").isdigit():
+        constraint_id = int(constraint_id.strip())
+    pair_id = selected.get("replacement_pair_id")
+    if isinstance(pair_id, str):
+        pair_id = pair_id.strip()
+    chosen = _find_candidate(plan, constraint_id, pair_id)
+    if chosen is None:
+        raise ValueError("Override instruction generation selected a pair that is not a candidate")
+
+    chosen = copy.copy(chosen)
+
+    raw_instructions = payload.get("instructions", [])
+    if not isinstance(raw_instructions, list) or len(raw_instructions) <= 1:
+        raise ValueError("Override instruction generation returned i0-only output")
+
     instructions = []
-    for item in payload.get("instructions", []):
+    for item in raw_instructions:
         rtype = item.get("type", "additive")
-        # When the plan is conditional, force the override revision's
-        # type so runner emits the [CONDITIONAL] tag and evaluator
-        # routes via Phase A branch resolution. We don't trust the LLM
-        # to set "conditional_override" itself — it commonly emits
-        # "override" — so coerce based on the plan.
-        if (
-            plan.override_mode == "conditional"
-            and rtype == "override"
-        ):
+        condition_text = str(item.get("condition_text", "")).strip()
+        if plan.override_mode == "conditional" and rtype == "override" and condition_text:
             rtype = "conditional_override"
         instructions.append(
             Instruction(
@@ -122,17 +211,10 @@ def generate_override_instructions(
                 instruction=item["instruction"],
                 milestone=item.get("milestone", ""),
                 revision_type=rtype,
-                condition_text=str(item.get("condition_text", "")).strip(),
+                condition_text=condition_text,
             )
         )
 
-    if len(instructions) <= 1:
-        raise ValueError("Override instruction generation returned i0-only output")
-
-    # Conditional mode: copy LLM-written condition_text back into the
-    # plan's switching_condition, so downstream consumers (export.py,
-    # branch_policy in final task JSON) get a clean LLM-authored
-    # predicate instead of a template-rendered string.
     if plan.override_mode == "conditional":
         cond_inst = next(
             (
@@ -141,9 +223,19 @@ def generate_override_instructions(
             ),
             None,
         )
-        if cond_inst is not None and plan.overrides:
-            sc = plan.overrides[0].switching_condition
-            if sc is not None:
-                sc.condition_text = cond_inst.condition_text
+        if cond_inst is None:
+            raise ValueError(
+                "Conditional override generation did not produce a conditional_override "
+                "turn with condition_text"
+            )
+        _attach_conditional_choice(chosen, selected, cond_inst.condition_text)
+        if any(inst.revision_type == "override" for inst in instructions):
+            raise ValueError("Conditional track emitted a flat override revision")
+    else:
+        if not any(inst.revision_type == "override" for inst in instructions):
+            raise ValueError("Unconditional override generation did not produce an override turn")
+        chosen.switching_condition = None
 
+    plan.enable_override = True
+    plan.overrides = [chosen]
     return MultiturnResult(instructions=instructions)

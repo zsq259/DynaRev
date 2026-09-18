@@ -46,7 +46,7 @@ from utils.client import get_client
 def _build_override_context(
     step3a: Any,
 ) -> Dict[str, Any]:
-    """Build override context from Step3a output only.
+    """Build override context from the chosen Step 3b item (stored on step3a).
 
     Step 4 (review) and Step 5 (binding) consume this. In conditional
     mode the additional ``switching_condition`` per item lets those
@@ -211,13 +211,14 @@ def run_pipeline(
                 attempt_history=attempt_history if attempt_history else None,
                 override_mode=override_mode,
                 switching_conditions=switching_conditions,
+                website=task.website,
             )
 
-            # In override mode, distinguish planning/generation miss from true runtime exceptions.
+            # In override mode, distinguish candidate miss from LLM selection miss.
             if instruction_track_mode == "override":
-                if not output.step3a or not output.step3a.enable_override or not output.step3a.overrides:
+                if not output.step3a or not output.step3a.candidates:
                     output.filtered_at = "step3a"
-                    output.filter_reason = "Override disabled or no override plan"
+                    output.filter_reason = "Override disabled or no cosine candidates"
                     logger.warning(
                         "STEP3A | %s | Filtered: %s",
                         task.task_id,
@@ -226,17 +227,47 @@ def run_pipeline(
                     current_attempt["step3a_filtered"] = output.filter_reason
                     output.attempt_records.append(current_attempt)
                     return output
-                if output.step3 is None:
-                    output.filtered_at = "step3a"
-                    output.filter_reason = "Override instruction generation returned no output"
+                logger.info(
+                    "STEP3A | %s | %d override candidates",
+                    task.task_id,
+                    len(output.step3a.candidates),
+                )
+                if (
+                    output.step3 is None
+                    or not output.step3a.enable_override
+                    or not output.step3a.overrides
+                ):
+                    output.filtered_at = "step3b"
+                    output.filter_reason = "Override instruction generation declined or invalid"
                     logger.warning(
-                        "STEP3A | %s | Filtered: %s",
+                        "STEP3B | %s | Filtered: %s",
                         task.task_id,
                         output.filter_reason,
                     )
-                    current_attempt["step3a_filtered"] = output.filter_reason
+                    current_attempt["step3b_filtered"] = output.filter_reason
                     output.attempt_records.append(current_attempt)
                     return output
+                if override_mode == "conditional":
+                    chosen = output.step3a.overrides[0]
+                    sc = chosen.switching_condition
+                    if (
+                        output.step3a.override_mode != "conditional"
+                        or sc is None
+                        or not sc.condition_text
+                    ):
+                        output.filtered_at = "step3b"
+                        output.filter_reason = (
+                            "Conditional override missing switching condition; "
+                            "refusing unconditional fallback"
+                        )
+                        logger.warning(
+                            "STEP3B | %s | Filtered: %s",
+                            task.task_id,
+                            output.filter_reason,
+                        )
+                        current_attempt["step3b_filtered"] = output.filter_reason
+                        output.attempt_records.append(current_attempt)
+                        return output
 
             if output.step3 is None:
                 raise RuntimeError("Step3 generation returned no output")
@@ -268,7 +299,7 @@ def run_pipeline(
                     "type": inst.revision_type,
                 }
                 for inst in output.step3.instructions
-                if inst.revision_type == "override"
+                if inst.revision_type in ("override", "conditional_override")
             ]
         except Exception as e:
             output.filtered_at = "step3"
@@ -434,6 +465,7 @@ def load_inputs_from_csv(csv_path: str) -> List[PipelineInput]:
                 website=row.get("website", ""),
                 original_instruction=row.get("confirmed_task", row.get("base_task", "")),
                 scene=row.get("primary_scene", row.get("scene_label", "")),
+                dataset=row.get("source_dataset") or row.get("dataset") or "osunlp/Online-Mind2Web",
             ))
     return inputs
 
@@ -497,6 +529,17 @@ def save_pipeline_report(outputs: List[PipelineOutput], path: str) -> None:
             entry["step3a_override_plan"] = {
                 "enable_override": o.step3a.enable_override,
                 "override_mode": o.step3a.override_mode,
+                "candidates": [
+                    {
+                        "target_constraint_id": item.target_constraint_id,
+                        "target_constraint_text": item.target_constraint_text,
+                        "replacement_pair_id": item.replacement_pair_id,
+                        "replacement_constraint_text": item.replacement_constraint_text,
+                        "dimension": item.dimension,
+                        "score": item.score,
+                    }
+                    for item in o.step3a.candidates
+                ],
                 "overrides": [
                     {
                         "target_constraint_id": item.target_constraint_id,
@@ -586,7 +629,7 @@ def parse_args() -> argparse.Namespace:
         "--override-planning-strategy",
         choices=["rule_based", "hybrid", "llm_only"],
         default="rule_based",
-        help="Override planning strategy for Step 3a",
+        help="Unused (kept for old scripts). Step 3a only builds cosine candidates; Step 3b selects.",
     )
     p.add_argument(
         "--override-insertion-timing",
@@ -608,7 +651,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--switching-conditions-path",
         default="data/pipeline/switching_conditions.yaml",
-        help="Switching condition templates (used when --override-mode=conditional)",
+        help="Unused (kept for old scripts). Conditional Step 3b picks count/price/rating/time.",
     )
 
     # Options
@@ -665,18 +708,15 @@ def main() -> None:
     if args.instruction_track_mode == "override":
         replacement_pairs = load_replacement_pairs(args.replacement_pairs_path, logger)
         logger.info(
-            "PIPELINE_OVERRIDE | strategy=%s | timing=%s | mode=%s",
-            args.override_planning_strategy,
+            "PIPELINE_OVERRIDE | timing=%s | mode=%s | planning_strategy_ignored=%s",
             args.override_insertion_timing,
             args.override_mode,
+            args.override_planning_strategy,
         )
         if args.override_mode == "conditional":
-            from pipeline_lib.step3a_override_plan import load_switching_conditions
-            switching_conditions = load_switching_conditions(args.switching_conditions_path)
-            n_templates = len(switching_conditions.get("templates", [])) if switching_conditions else 0
             logger.info(
-                "PIPELINE_CONDITIONAL | switching_conditions=%s | templates=%d",
-                args.switching_conditions_path, n_templates,
+                "PIPELINE_CONDITIONAL | third_dim=count|price|rating|time | yaml_unused=%s",
+                args.switching_conditions_path,
             )
 
     # OpenAI client

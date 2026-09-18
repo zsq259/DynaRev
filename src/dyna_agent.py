@@ -397,7 +397,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--policy-model", default=None)
     p.add_argument("--trigger-model", default=None)
     p.add_argument("--temperature", type=float, default=0.0)
-    p.add_argument("--max-tokens", type=int, default=1024)
+    p.add_argument("--max-tokens", type=int, default=16384)
     p.add_argument("--max-steps", type=int, default=None)
     p.add_argument(
         "--stuck-steps",
@@ -464,7 +464,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--exec-workers",
         type=int,
-        default=1,
+        default=3,
         help="max isolated task processes in flight; 1 keeps the serial loop",
     )
     p.add_argument(
@@ -493,7 +493,7 @@ def parse_args() -> argparse.Namespace:
 
 def validate_exec_workers(args: argparse.Namespace, tasks: List[Any]) -> int:
     """Reject combinations that would share a process or dual-write a task dir."""
-    workers = int(getattr(args, "exec_workers", 1) or 1)
+    workers = int(getattr(args, "exec_workers", 3) or 1)
     if workers < 1:
         raise SystemExit("--exec-workers must be >= 1")
     if workers > 1 and getattr(args, "no_task_isolation", False):
@@ -577,7 +577,7 @@ def main() -> None:
     logger.info(
         "RUN_START | tasks=%d | exec_workers=%s | policy_model=%s | trigger_model=%s | dataset_type=%s",
         len(tasks),
-        getattr(args, "exec_workers", 1),
+        getattr(args, "exec_workers", 3),
         args.policy_model,
         args.trigger_model,
         args.dataset_type,
