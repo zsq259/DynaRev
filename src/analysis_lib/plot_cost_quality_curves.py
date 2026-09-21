@@ -285,9 +285,23 @@ def compute_curves(
 ) -> list[dict[str, int | float | str]]:
     rows: list[dict[str, int | float | str]] = []
     budget_key = "action_budget" if cost_kind == "steps" else "token_budget"
+    if cost_kind == "steps":
+        budgets = list(range(0, max_budget + 1))
+    else:
+        observed = sorted(
+            {
+                item.cost(cost_kind)
+                for item in observations
+                if 0 < item.cost(cost_kind) <= max_budget
+            }
+        )
+        budgets = [0]
+        budgets.extend(observed)
+        if max_budget not in budgets:
+            budgets.append(max_budget)
     for model in models:
         model_records = [item for item in observations if item.model == model]
-        for budget in range(0, max_budget + 1):
+        for budget in budgets:
             eligible = [item for item in model_records if item.cost(cost_kind) <= budget]
             rows.append(
                 {
