@@ -655,26 +655,26 @@ realistic preference change a user might make."""
 STEP3_OVERRIDE_SYSTEM = (
     "You are an expert at designing natural multi-turn user interactions for GUI tasks. "
     "Arrange extracted constraints into a realistic timeline, with a milestone "
-    "for each turn after I0. Pick at most one pair from the candidate list. "
+    "for each turn after I0. Prefer a row from the candidate list. If that list "
+    "is empty, propose a replacement for one existing constraint. "
     "Follow the override_mode section exactly."
 )
 
 STEP3_OVERRIDE_UNCONDITIONAL_BLOCK = """\
 ## Override mode: unconditional
 
-Pick one candidate. Write one `type="override"` turn that switches that target \
-to that replacement. No if-clause. Other turns are `type="additive"`.
+Use a candidate row if any exist; otherwise use the proposed A→B from the \
+empty-candidate rules. Write one `type="override"` turn that switches that \
+target to that replacement. No if-clause. Other turns are `type="additive"`.
 
-`selected` has only:
-- `target_constraint_id` / `replacement_pair_id` copied from one candidate row
-
-If no candidate is a natural preference change, return `"enable_override": false`.
+When using a candidate, `selected` has only:
+- `target_constraint_id` / `replacement_pair_id` copied from that row
 
 Good: "Actually, change the color to blue instead. Keep the other criteria the same."
 Bad: "Color doesn't matter anymore." / "If it's expensive, blue is fine."
 
-Example (duration 6–12 min → 12–18 min). Copy real candidate ids in your output; \
-do not reuse the example ids.
+Example with candidates (duration 6–12 min → 12–18 min). Copy real candidate \
+ids; do not reuse the example ids.
 
 ```json
 {
@@ -691,13 +691,36 @@ do not reuse the example ids.
   ]
 }
 ```
+
+Empty-candidate example (IMDb): A = "premiered in 2024" → B = "premiered in 2023".
+Good: "Actually, use 2023 instead of 2024. Keep the matching China/US theatrical dates."
+Bad: "Find TV shows instead." / "Any year is fine."
+
+```json
+{
+  "enable_override": true,
+  "selected": {
+    "target_constraint_id": 2,
+    "replacement_pair_id": null,
+    "proposed_replacement": "The movies must have premiered in 2023.",
+    "pair_dimension": "year"
+  },
+  "instructions": [
+    {"id": 0, "instruction": "On IMDb, search for movies premiered in 2024 that have matching theatrical release dates in mainland China and the United States."},
+    {"id": 1, "instruction": "Actually, use 2023 instead of 2024. Keep the matching China/US theatrical dates.",
+     "milestone": "The IMDb search for 2024 movies with matching China/US theatrical dates is established.",
+     "type": "override"}
+  ]
+}
+```
 """
 
 STEP3_OVERRIDE_CONDITIONAL_BLOCK = """\
 ## Override mode: conditional
 
-Pick one candidate. The default stays A. B is accepted only when a page-observable \
-condition holds:
+Use a candidate row if any exist; otherwise use the proposed A→B from the \
+empty-candidate rules. The default stays A. B is accepted only when a \
+page-observable condition holds:
 
   (QUANTITY) ( > or < ) (NUMBER)
 
@@ -723,11 +746,14 @@ number and comparison.
 
 Milestone: the default preference has been applied, including empty or short lists.
 
-If no candidate fits, or no QUANTITY is observable here, return \
-`"enable_override": false`. Do not write a flat override.
+If you cannot form A→B (from a candidate or a proposed replacement), or no \
+QUANTITY is observable on this page, return `"enable_override": false`. \
+Do not write a flat override.
 
 `selected` fields:
-- `target_constraint_id` / `replacement_pair_id` copied from one candidate row
+- `target_constraint_id`
+- `replacement_pair_id` copied from a candidate row, or null if proposing B
+- if proposing: `proposed_replacement` and `pair_dimension`
 - `quantity`: count | price | rating | time
 - `operator`: > or <
 - `threshold`: the NUMBER
@@ -747,6 +773,9 @@ Examples (target → replacement, condition):
 - target="Comics must feature Batman", replacement="Comics need not feature Batman",
   quantity=count, operator="<", threshold=2
   Good: "I prefer keeping the Batman requirement. If fewer than two such comics are listed, drop the Batman filter."
+- Empty-candidate (IMDb): A = "premiered in 2024",
+  B = "premiered in 2023", quantity=count, operator="<", threshold=3
+  Good: "I still want 2024. If fewer than 3 such movies with matching China/US theatrical dates are listed, 2023 is acceptable."
 
 Full timeline:
 
@@ -791,9 +820,14 @@ write a multi-turn instruction sequence with milestones.
 - Sound like a user refining the request after seeing progress.
 - Group information naturally; do not split one idea across turns.
 - Keep composite AND/OR constraints intact.
-- If `"enable_override": true`, pick exactly one row from `override_candidates` \
-and copy its `target_constraint_id` and `replacement_pair_id` into `selected`. \
-Do not invent a pair or an id.
+- If `override_candidates` is non-empty: pick exactly one row and copy \
+`target_constraint_id` / `replacement_pair_id` into `selected`. Do not invent a pair.
+- If `override_candidates` is empty: pick one constraint as A (a preference the \
+user could change, not the task subject). Write B as `proposed_replacement` \
+on the same dimension. B must be a different concrete value this website can \
+actually show. Set `replacement_pair_id` to null. Do not change the subject \
+(movies stay movies). Do not invent a price on a page with no prices.
+- `"enable_override": false` only if no such preference exists.
 - Do not rewrite a replacement into "any is fine" / "remove the filter" / "don't care".
 
 {mode_block}

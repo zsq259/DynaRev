@@ -56,6 +56,60 @@ def _candidates_payload(plan: OverridePlanResult) -> Dict[str, Any]:
     }
 
 
+def _normalize_pair_id(pair_id: Any) -> Optional[str]:
+    if pair_id is None:
+        return None
+    if isinstance(pair_id, str):
+        text = pair_id.strip()
+        if not text or text.lower() == "null":
+            return None
+        return text
+    return None
+
+
+def _build_proposed_item(
+    constraints: ConstraintResult,
+    selected: Dict[str, Any],
+    constraint_id: Any,
+) -> OverrideItem:
+    if not isinstance(constraint_id, int):
+        raise ValueError("Proposed override requires target_constraint_id")
+    texts = {c.id: c.description for c in constraints.constraints}
+    target = texts.get(constraint_id, "")
+    if not target:
+        raise ValueError("Proposed override target_constraint_id is not in the constraint list")
+    replacement = str(selected.get("proposed_replacement") or "").strip()
+    if not replacement:
+        raise ValueError("Empty-candidate override requires proposed_replacement")
+    return OverrideItem(
+        target_constraint_id=constraint_id,
+        replacement_pair_id="proposed",
+        target_constraint_text=target,
+        replacement_constraint_text=replacement,
+        dimension=str(selected.get("pair_dimension") or "").strip(),
+        score=0.0,
+    )
+
+
+def _resolve_selected_item(
+    plan: OverridePlanResult,
+    constraints: ConstraintResult,
+    selected: Dict[str, Any],
+) -> OverrideItem:
+    constraint_id = selected.get("target_constraint_id")
+    if isinstance(constraint_id, str) and constraint_id.strip().lstrip("-").isdigit():
+        constraint_id = int(constraint_id.strip())
+    pair_id = _normalize_pair_id(selected.get("replacement_pair_id"))
+    if plan.candidates:
+        if pair_id is None:
+            raise ValueError("Must copy replacement_pair_id from a candidate row")
+        chosen = _find_candidate(plan, constraint_id, pair_id)
+        if chosen is None:
+            raise ValueError("Override instruction generation selected a pair that is not a candidate")
+        return copy.copy(chosen)
+    return _build_proposed_item(constraints, selected, constraint_id)
+
+
 def _find_candidate(
     plan: OverridePlanResult,
     constraint_id: Any,
@@ -120,17 +174,7 @@ def generate_override_instructions(
     previous_step4_reason: str | None = None,
     website: str = "",
 ) -> Optional[MultiturnResult]:
-    """Pick one candidate and generate the override timeline.
-
-    Mutates ``plan``: fills ``overrides`` on success; sets
-    ``enable_override=False`` when the LLM declines. Returns None when no
-    timeline is produced.
-    """
-    if not plan.candidates:
-        plan.enable_override = False
-        plan.overrides = []
-        return None
-
+    """Pick one candidate, or propose B when the candidate list is empty."""
     constraints_json = json.dumps(
         [{"id": c.id, "description": c.description} for c in constraints.constraints],
         ensure_ascii=False,
@@ -183,17 +227,7 @@ def generate_override_instructions(
     if not isinstance(selected, dict):
         raise ValueError("Override instruction generation returned invalid selected object")
 
-    constraint_id = selected.get("target_constraint_id")
-    if isinstance(constraint_id, str) and constraint_id.strip().lstrip("-").isdigit():
-        constraint_id = int(constraint_id.strip())
-    pair_id = selected.get("replacement_pair_id")
-    if isinstance(pair_id, str):
-        pair_id = pair_id.strip()
-    chosen = _find_candidate(plan, constraint_id, pair_id)
-    if chosen is None:
-        raise ValueError("Override instruction generation selected a pair that is not a candidate")
-
-    chosen = copy.copy(chosen)
+    chosen = _resolve_selected_item(plan, constraints, selected)
 
     raw_instructions = payload.get("instructions", [])
     if not isinstance(raw_instructions, list) or len(raw_instructions) <= 1:

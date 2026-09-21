@@ -65,10 +65,6 @@ def run_step3(
         override_mode=override_mode,
     )
 
-    if not plan.candidates:
-        plan.enable_override = False
-        return plan, None
-
     mt = generate_override_instructions(
         constraints=constraints,
         i0=i0,

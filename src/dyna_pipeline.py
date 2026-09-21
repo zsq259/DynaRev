@@ -216,9 +216,9 @@ def run_pipeline(
 
             # In override mode, distinguish candidate miss from LLM selection miss.
             if instruction_track_mode == "override":
-                if not output.step3a or not output.step3a.candidates:
+                if output.step3a is None:
                     output.filtered_at = "step3a"
-                    output.filter_reason = "Override disabled or no cosine candidates"
+                    output.filter_reason = "Override plan missing"
                     logger.warning(
                         "STEP3A | %s | Filtered: %s",
                         task.task_id,
