@@ -9,11 +9,11 @@ from .models import PipelineOutput
 def to_dyna_task_json(output: PipelineOutput) -> Dict[str, Any]:
     """Convert a successful PipelineOutput to dyna_task_v2 JSON structure.
 
-    Conditional override (override_mode='conditional'): the original
-    constraint stays as ``branch='default'`` and a synthetic alternative
-    constraint with ``branch='alternative'`` is appended, bound to the
-    conditional revision. ``branch_policy`` carries the LLM-readable
-    condition_text plus the constraint id pointers for evaluator Phase A.
+    Conditional override (override_mode='conditional'): the default-branch
+    constraint uses Step 3b ``keep`` and a synthetic alternative constraint
+    uses ``change_to``, bound to the conditional revision. ``branch_policy``
+    carries the LLM-readable condition_text plus the constraint id pointers
+    for evaluator Phase A.
     Unconditional override and base tracks emit ``branch_policy: []`` as
     before.
     """
@@ -36,10 +36,8 @@ def to_dyna_task_json(output: PipelineOutput) -> Dict[str, Any]:
         and output.step3a.override_mode == "conditional"
     )
 
-    # In override mode, evaluation should use the replaced constraint
-    # text — UNLESS we're in conditional mode, where the original stays
-    # as the default branch and we instead append a synthetic
-    # alternative-branch constraint.
+    # Unconditional: evaluation uses Step 3b change_to as the constraint text.
+    # Conditional: default gold is keep; alt is appended as change_to.
     override_replacement_by_constraint_id: Dict[int, str] = {}
     if (
         output.step3a
@@ -105,10 +103,12 @@ def to_dyna_task_json(output: PipelineOutput) -> Dict[str, Any]:
         item = output.step3a.overrides[0]
         sc = item.switching_condition
         if sc is not None and conditional_revision_id:
-            # Tag the original (default-branch) constraint
+            # Tag the default-branch constraint; gold is 3b keep, not Step 1.
             for c_entry in constraints_list:
                 if c_entry["id"] == item.target_constraint_id:
                     c_entry["branch"] = "default"
+                    if item.target_constraint_text:
+                        c_entry["description"] = item.target_constraint_text
                     break
             # Append synthetic alternative-branch constraint
             existing_ids = {c["id"] for c in constraints_list}

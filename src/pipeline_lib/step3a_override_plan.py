@@ -101,13 +101,26 @@ def _matches_for_constraint(
     return found
 
 
-def _resolve_override_item(
+def ordered_pair_values(item: OverrideItem) -> List[str]:
+    """Library pair texts, closer-to-anchor first. Presentation only."""
+    a = (item.pair_a or "").strip()
+    b = (item.pair_b or "").strip()
+    if a and b:
+        anchor = item.target_constraint_text
+        if _cosine_similarity(anchor, b) > _cosine_similarity(anchor, a):
+            return [b, a]
+        return [a, b]
+    return [text for text in (a, b) if text]
+
+
+def _build_candidate_item(
     constraints: ConstraintResult,
     pairs: List[Dict[str, Any]],
     target_constraint_id: int,
     replacement_pair_id: str,
     score: float = 0.0,
 ) -> Optional[OverrideItem]:
+    """Attach a library pair to a seed constraint. Do not pick a direction."""
     id_to_text = {c.id: c.description for c in constraints.constraints}
     target_text = id_to_text.get(target_constraint_id, "")
     if not target_text:
@@ -117,23 +130,18 @@ def _resolve_override_item(
     if not pair:
         return None
 
-    a = pair.get("constraint_a", {}).get("text", "")
-    b = pair.get("constraint_b", {}).get("text", "")
-    if target_text == a:
-        replacement_text = b
-    elif target_text == b:
-        replacement_text = a
-    else:
-        replacement_text = b or a
-
-    if not replacement_text:
+    a = str(pair.get("constraint_a", {}).get("text", "") or "").strip()
+    b = str(pair.get("constraint_b", {}).get("text", "") or "").strip()
+    if not a or not b:
         return None
 
     return OverrideItem(
         target_constraint_id=target_constraint_id,
         replacement_pair_id=replacement_pair_id,
         target_constraint_text=target_text,
-        replacement_constraint_text=replacement_text,
+        replacement_constraint_text="",
+        pair_a=a,
+        pair_b=b,
         dimension=pair.get("dimension", ""),
         score=score,
     )
@@ -165,7 +173,7 @@ def build_override_plan(
         key = (cid, pid)
         if key in seen:
             continue
-        resolved = _resolve_override_item(constraints, pairs, cid, pid, score=score)
+        resolved = _build_candidate_item(constraints, pairs, cid, pid, score=score)
         if not resolved:
             continue
         seen.add(key)

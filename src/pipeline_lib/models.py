@@ -63,15 +63,20 @@ class SwitchingCondition:
 
 @dataclass
 class OverrideItem:
-    """One (constraint, replacement pair) item.
+    """One (anchor constraint, library pair) item.
 
-    Step 3a puts cosine-passing items in ``OverridePlanResult.candidates``.
-    Step 3b copies the chosen item into ``overrides``.
+    Step 3a fills candidates with the seed constraint and both pair texts
+    as unlabeled references. It does not decide direction.
+    After Step 3b, ``target_constraint_text`` / ``replacement_constraint_text``
+    are the LLM's keep / change_to gold (wording may differ from the pair
+    and from the seed constraint).
     """
     target_constraint_id: int
     replacement_pair_id: str
     target_constraint_text: str = ""
     replacement_constraint_text: str = ""
+    pair_a: str = ""
+    pair_b: str = ""
     dimension: str = ""
     score: float = 0.0
     # Conditional override only: present when override_mode == "conditional"

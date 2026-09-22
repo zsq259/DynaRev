@@ -655,23 +655,31 @@ realistic preference change a user might make."""
 STEP3_OVERRIDE_SYSTEM = (
     "You are an expert at designing natural multi-turn user interactions for GUI tasks. "
     "Arrange extracted constraints into a realistic timeline, with a milestone "
-    "for each turn after I0. Prefer a row from the candidate list. If that list "
-    "is empty, propose a replacement for one existing constraint. "
+    "for each turn after I0. Prefer a row from the candidate list as a reference. "
+    "If that list is empty, propose a replacement for one existing constraint. "
+    "You decide which preference to keep and what it changes to. "
     "Follow the override_mode section exactly."
 )
 
 STEP3_OVERRIDE_UNCONDITIONAL_BLOCK = """\
 ## Override mode: unconditional
 
-Use a candidate row if any exist; otherwise use the proposed A→B from the \
-empty-candidate rules. Write one `type="override"` turn that switches that \
-target to that replacement. No if-clause. Other turns are `type="additive"`.
+Use a candidate row if any exist; otherwise use the empty-candidate rules. \
+Write one `type="override"` turn that switches the current preference (`keep`) \
+to `change_to`. No if-clause. Other turns are `type="additive"`.
 
-When using a candidate, `selected` has only:
+Candidate `pair_values` are a reference on one dimension, not gold and not a \
+direction label. Write `keep` and `change_to` in the task's own wording. They \
+may differ from the pair texts and from the anchor constraint.
+
+When using a candidate, `selected` has:
 - `target_constraint_id` / `replacement_pair_id` copied from that row
+- `keep`: the preference that stays in force until the override
+- `change_to`: the preference after the override (a different concrete value)
 
 Good: "Actually, change the color to blue instead. Keep the other criteria the same."
 Bad: "Color doesn't matter anymore." / "If it's expensive, blue is fine."
+Bad: keep and change_to that are the same preference.
 
 Example with candidates (duration 6–12 min → 12–18 min). Copy real candidate \
 ids; do not reuse the example ids.
@@ -681,7 +689,9 @@ ids; do not reuse the example ids.
   "enable_override": true,
   "selected": {
     "target_constraint_id": 3,
-    "replacement_pair_id": "from_a_candidate_row"
+    "replacement_pair_id": "from_a_candidate_row",
+    "keep": "The talk must last 6 to 12 minutes.",
+    "change_to": "The talk must last 12 to 18 minutes."
   },
   "instructions": [
     {"id": 0, "instruction": "Find me a TED talk on the topic of robots that lasts 6 to 12 minutes."},
@@ -692,7 +702,7 @@ ids; do not reuse the example ids.
 }
 ```
 
-Empty-candidate example (IMDb): A = "premiered in 2024" → B = "premiered in 2023".
+Empty-candidate example (IMDb).
 Good: "Actually, use 2023 instead of 2024. Keep the matching China/US theatrical dates."
 Bad: "Find TV shows instead." / "Any year is fine."
 
@@ -702,7 +712,8 @@ Bad: "Find TV shows instead." / "Any year is fine."
   "selected": {
     "target_constraint_id": 2,
     "replacement_pair_id": null,
-    "proposed_replacement": "The movies must have premiered in 2023.",
+    "keep": "The movies must have premiered in 2024.",
+    "change_to": "The movies must have premiered in 2023.",
     "pair_dimension": "year"
   },
   "instructions": [
@@ -718,8 +729,8 @@ Bad: "Find TV shows instead." / "Any year is fine."
 STEP3_OVERRIDE_CONDITIONAL_BLOCK = """\
 ## Override mode: conditional
 
-Use a candidate row if any exist; otherwise use the proposed A→B from the \
-empty-candidate rules. The default stays A. B is accepted only when a \
+Use a candidate row if any exist; otherwise use the empty-candidate rules. \
+The default stays `keep`. `change_to` is accepted only when a \
 page-observable condition holds:
 
   (QUANTITY) ( > or < ) (NUMBER)
@@ -734,47 +745,51 @@ NUMBER means too few. If the task asks for K items, K is a reasonable NUMBER.
 Choose QUANTITY from what this website can actually show. Candidate \
 `pair_dimension` is the pair's own axis (color, year, …), not QUANTITY.
 
-Do not restate the A/B pair as the condition. If the pair itself is a quota \
+Do not restate the pair as the condition. If the pair itself is a quota \
 (find 10 vs find 5), "not enough matching results" is a valid count condition.
 
 Fill NUMBER from the task.
 
-The revision must keep A as the default, state the condition with the concrete \
-number, and accept B only if the condition holds. `type="conditional_override"`. \
-Also set `condition_text` on that turn: one predicate sentence using the same \
-number and comparison.
+The revision must keep `keep` as the default, state the condition with the \
+concrete number, and accept `change_to` only if the condition holds. \
+`type="conditional_override"`. Also set `condition_text` on that turn: one \
+predicate sentence using the same number and comparison.
+
+Candidate `pair_values` are a reference, not gold and not a direction label. \
+Write `keep` and `change_to` in the task's own wording.
 
 Milestone: the default preference has been applied, including empty or short lists.
 
-If you cannot form A→B (from a candidate or a proposed replacement), or no \
-QUANTITY is observable on this page, return `"enable_override": false`. \
+If you cannot form a real preference change (from a candidate or a proposal), \
+or no QUANTITY is observable on this page, return `"enable_override": false`. \
 Do not write a flat override.
 
 `selected` fields:
 - `target_constraint_id`
-- `replacement_pair_id` copied from a candidate row, or null if proposing B
-- if proposing: `proposed_replacement` and `pair_dimension`
+- `replacement_pair_id` copied from a candidate row, or null if proposing
+- `keep` / `change_to` (required; different preferences)
+- if proposing: `pair_dimension`
 - `quantity`: count | price | rating | time
 - `operator`: > or <
 - `threshold`: the NUMBER
-- `unit`: e.g. USD, or "" 
+- `unit`: e.g. USD, or ""
 
 Copy real candidate ids in your output; do not reuse the example ids.
 
-Examples (target → replacement, condition):
-- target="Selected flight is non-red-eye", replacement="Selected flight is red-eye",
+Examples (keep → change_to, condition):
+- keep="Selected flight is non-red-eye", change_to="Selected flight is red-eye",
   quantity=price, operator=">", threshold=500, unit="RMB"
   Good: "I prefer no red-eye flights. But if non-red-eye flights are at least 500 RMB more expensive than the cheapest red-eye, red-eye is acceptable."
   Bad: "Actually, switch to red-eye." (flat override — no condition)
   Bad: "If it's expensive, red-eye is fine." (vague — must keep a concrete number)
-- target="Color must be black", replacement="Color must be white",
+- keep="Color must be black", change_to="Color must be white",
   quantity=count, operator="<", threshold=1
   Good: "I want a black sofa. But if no black option is available, white is also fine."
-- target="Comics must feature Batman", replacement="Comics need not feature Batman",
+- keep="Comics must feature Batman", change_to="Comics need not feature Batman",
   quantity=count, operator="<", threshold=2
   Good: "I prefer keeping the Batman requirement. If fewer than two such comics are listed, drop the Batman filter."
-- Empty-candidate (IMDb): A = "premiered in 2024",
-  B = "premiered in 2023", quantity=count, operator="<", threshold=3
+- Empty-candidate (IMDb): keep = "premiered in 2024",
+  change_to = "premiered in 2023", quantity=count, operator="<", threshold=3
   Good: "I still want 2024. If fewer than 3 such movies with matching China/US theatrical dates are listed, 2023 is acceptable."
 
 Full timeline:
@@ -785,6 +800,8 @@ Full timeline:
   "selected": {
     "target_constraint_id": 3,
     "replacement_pair_id": "from_a_candidate_row",
+    "keep": "Comics must feature Batman.",
+    "change_to": "Comics need not feature Batman.",
     "quantity": "count",
     "operator": "<",
     "threshold": 2,
@@ -821,13 +838,16 @@ write a multi-turn instruction sequence with milestones.
 - Group information naturally; do not split one idea across turns.
 - Keep composite AND/OR constraints intact.
 - If `override_candidates` is non-empty: pick exactly one row and copy \
-`target_constraint_id` / `replacement_pair_id` into `selected`. Do not invent a pair.
-- If `override_candidates` is empty: pick one constraint as A (a preference the \
-user could change, not the task subject). Write B as `proposed_replacement` \
-on the same dimension. B must be a different concrete value this website can \
-actually show. Set `replacement_pair_id` to null. Do not change the subject \
-(movies stay movies). Do not invent a price on a page with no prices.
-- `"enable_override": false` only if no such preference exists.
+`target_constraint_id` / `replacement_pair_id` into `selected`. Do not invent a pair. \
+Write `keep` and `change_to` yourself. `pair_values` are a reference only; \
+do not copy them unless that wording already fits the task.
+- If `override_candidates` is empty: pick one constraint as the preference the \
+user could change (not the task subject). Write `keep` and `change_to` on \
+the same dimension. `change_to` must be a different concrete value this \
+website can actually show. Set `replacement_pair_id` to null. Do not change \
+the subject (movies stay movies). Do not invent a price on a page with no prices.
+- `"enable_override": false` if no such preference exists, or if keep and \
+change_to would be the same preference.
 - Do not rewrite a replacement into "any is fine" / "remove the filter" / "don't care".
 
 {mode_block}
@@ -856,8 +876,9 @@ Constraints:
 
 I0: {i0}
 
-Override candidates (each row is one constraint + replacement; \
-`pair_dimension` is the pair's axis, not a switching quantity):
+Override candidates (each row is one seed constraint plus a reference pair; \
+`pair_values` are unlabeled; `pair_dimension` is the pair's axis, not a \
+switching quantity):
 {override_candidates}
 
 Notes:

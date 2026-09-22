@@ -44,11 +44,13 @@ def bind_constraints(
                 "This is a conditional override (override_mode=conditional). Bind "
                 "target_constraint to the conditional_override revision — that's where "
                 "the dimension's outcome is decided.\n\n"
-                "The replacement_constraint text only appears in override_context above. "
-                "It is NOT a row in your constraints list, and no instruction needs to "
-                "deliver it as a hard requirement. Export-time post-processing adds it "
-                "to the final task as a synthetic alt-branch constraint after Step 5. "
-                "Don't try to bind it."
+                "The replacement_constraint text (Step 3b change_to) only appears in "
+                "override_context above. It is NOT a row in your constraints list, and no "
+                "instruction needs to deliver it as a hard requirement. Export-time "
+                "post-processing adds it to the final task as a synthetic alt-branch "
+                "constraint after Step 5. Don't try to bind it. "
+                "target_constraint is Step 3b keep; bind the listed constraint id to the "
+                "conditional_override revision."
             )
         else:
             override_context_block = (

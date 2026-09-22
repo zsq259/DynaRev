@@ -22,6 +22,7 @@ from .prompts import (
     STEP3_OVERRIDE_UNCONDITIONAL_BLOCK,
     STEP3_OVERRIDE_USER,
 )
+from .step3a_override_plan import _normalize, ordered_pair_values
 
 SWITCHING_QUANTITIES = {"count", "price", "rating", "time"}
 SWITCHING_OPERATORS = {">", "<"}
@@ -46,10 +47,10 @@ def _candidates_payload(plan: OverridePlanResult) -> Dict[str, Any]:
         "candidates": [
             {
                 "target_constraint_id": item.target_constraint_id,
-                "target_constraint": item.target_constraint_text,
+                "anchor_constraint": item.target_constraint_text,
                 "replacement_pair_id": item.replacement_pair_id,
-                "replacement_constraint": item.replacement_constraint_text,
                 "pair_dimension": item.dimension,
+                "pair_values": ordered_pair_values(item),
             }
             for item in plan.candidates
         ],
@@ -78,17 +79,29 @@ def _build_proposed_item(
     target = texts.get(constraint_id, "")
     if not target:
         raise ValueError("Proposed override target_constraint_id is not in the constraint list")
-    replacement = str(selected.get("proposed_replacement") or "").strip()
-    if not replacement:
-        raise ValueError("Empty-candidate override requires proposed_replacement")
     return OverrideItem(
         target_constraint_id=constraint_id,
         replacement_pair_id="proposed",
         target_constraint_text=target,
-        replacement_constraint_text=replacement,
+        replacement_constraint_text="",
         dimension=str(selected.get("pair_dimension") or "").strip(),
         score=0.0,
     )
+
+
+def _apply_keep_change(chosen: OverrideItem, selected: Dict[str, Any]) -> Optional[OverrideItem]:
+    """Write 3b keep/change_to onto the item. None = no-op / tautology."""
+    keep = str(selected.get("keep") or "").strip()
+    change_to = str(
+        selected.get("change_to") or selected.get("proposed_replacement") or ""
+    ).strip()
+    if not keep or not change_to:
+        raise ValueError("selected.keep and selected.change_to are required")
+    if _normalize(keep) == _normalize(change_to):
+        return None
+    chosen.target_constraint_text = keep
+    chosen.replacement_constraint_text = change_to
+    return chosen
 
 
 def _resolve_selected_item(
@@ -228,6 +241,11 @@ def generate_override_instructions(
         raise ValueError("Override instruction generation returned invalid selected object")
 
     chosen = _resolve_selected_item(plan, constraints, selected)
+    chosen = _apply_keep_change(chosen, selected)
+    if chosen is None:
+        plan.enable_override = False
+        plan.overrides = []
+        return None
 
     raw_instructions = payload.get("instructions", [])
     if not isinstance(raw_instructions, list) or len(raw_instructions) <= 1:

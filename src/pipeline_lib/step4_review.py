@@ -50,8 +50,12 @@ def review_quality(
                 f"{ctx_json}\n\n"
                 "This is a conditional override (override_mode=conditional). The override "
                 "revision (type=conditional_override) softens the user's original preference "
-                "with a conditional clause: default = target_constraint, alt = replacement_constraint "
-                "accepted only when a page-observable condition holds.\n\n"
+                "with a conditional clause: default = target_constraint (Step 3b keep), "
+                "alt = replacement_constraint (Step 3b change_to) accepted only when a "
+                "page-observable condition holds.\n\n"
+                "Those two texts are written by Step 3b. They may differ from the "
+                "library pair and from the original extracted constraint. Paraphrase is "
+                "fine. Reject if they are the same preference (a no-op override).\n\n"
                 "Accept the override revision when its text:\n"
                 "  1. acknowledges target_constraint as the default preference;\n"
                 "  2. states a page-observable comparison (quantity) > or < (number), where "
@@ -67,8 +71,11 @@ def review_quality(
             override_context_block = (
                 "Override context:\n"
                 f"{ctx_json}\n\n"
-                "Interpretation rule: if an override instruction explicitly performs the target->replacement change "
-                "declared above, do not reject it solely for differing from the original value."
+                "Interpretation rule: if an override instruction explicitly performs the "
+                "target->replacement change declared above, do not reject it solely for "
+                "differing from the original extracted constraint or from the library pair. "
+                "target_constraint / replacement_constraint are Step 3b keep / change_to. "
+                "Reject if they are the same preference."
             )
     
     user_msg = STEP4_USER.format(

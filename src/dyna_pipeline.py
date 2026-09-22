@@ -534,7 +534,8 @@ def save_pipeline_report(outputs: List[PipelineOutput], path: str) -> None:
                         "target_constraint_id": item.target_constraint_id,
                         "target_constraint_text": item.target_constraint_text,
                         "replacement_pair_id": item.replacement_pair_id,
-                        "replacement_constraint_text": item.replacement_constraint_text,
+                        "pair_a": item.pair_a,
+                        "pair_b": item.pair_b,
                         "dimension": item.dimension,
                         "score": item.score,
                     }
@@ -546,6 +547,8 @@ def save_pipeline_report(outputs: List[PipelineOutput], path: str) -> None:
                         "target_constraint_text": item.target_constraint_text,
                         "replacement_pair_id": item.replacement_pair_id,
                         "replacement_constraint_text": item.replacement_constraint_text,
+                        "pair_a": item.pair_a,
+                        "pair_b": item.pair_b,
                         "dimension": item.dimension,
                         **(
                             {"switching_condition": {
