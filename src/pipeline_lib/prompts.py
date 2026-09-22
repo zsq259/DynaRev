@@ -4,13 +4,13 @@
 
 STEP1_SYSTEM = (
     "You are an expert at analyzing task instructions. "
-    "Your job is to extract all constraints from a given task instruction."
+    "Your job is to extract the constraints that an evaluator can actually check."
 )
 
 STEP1_USER = """\
 Given the following task instruction, extract all constraints and output a JSON object.
 
-A constraint is any condition, requirement, filter, or preference that restricts or guides how the task should be completed.
+A constraint is a condition, requirement, or filter stated in the instruction that can be checked from the final answer and/or a cited page.
 
 Output format:
 ```json
@@ -24,12 +24,13 @@ Output format:
 ```
 
 Rules:
-- List every constraint, no matter how minor
 - Each constraint must describe exactly one thing — do not merge multiple constraints into one
 - Write each constraint as a clear, self-contained statement
 - Preserve logical structure inside a single constraint when the original instruction expresses alternatives or conjunctions.
 - If the original instruction contains an OR relation (e.g., "A or B"), keep it as ONE composite constraint with the OR relation explicit.
 - Do not split one OR condition into two separate atomic constraints.
+- Extract what the instruction asks for, at the same scope it was written. Do not invent extra requirements or promote a vague overall goal into a per-item rule.
+- Skip wording that is only subjective or scene-setting (e.g. fun, nice, good). If a sentence mixes that with a concrete requirement, keep the concrete part.
 
 Here are some examples:
 
