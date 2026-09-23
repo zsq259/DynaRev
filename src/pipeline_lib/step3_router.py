@@ -1,5 +1,6 @@
 """Step 3 routing for base vs override instruction tracks."""
 
+import logging
 from typing import Any, Dict, Optional, Tuple
 
 from openai import OpenAI
@@ -8,6 +9,61 @@ from .models import ConstraintResult, I0Result, MultiturnResult, OverridePlanRes
 from .step3_multiturn import design_multiturn
 from .step3a_override_plan import build_override_plan
 from .step3b_override_instructions import generate_override_instructions
+
+logger = logging.getLogger(__name__)
+
+
+def _step3b_declined(plan: OverridePlanResult, mt: Optional[MultiturnResult]) -> bool:
+    return mt is None or not plan.enable_override or not plan.overrides
+
+
+def _generate_override_with_empty_retry(
+    constraints: ConstraintResult,
+    i0: I0Result,
+    plan: OverridePlanResult,
+    insertion_timing: str,
+    client: OpenAI,
+    model: str,
+    previous_step4_reason: str | None,
+    website: str,
+) -> Optional[MultiturnResult]:
+    """Run 3b. If it declines while candidates exist, clear them and run 3b once more.
+
+    3a candidates are restored on the plan afterward so the report still shows
+    what retrieval returned. Prompt is unchanged: the second call is the
+    existing empty-candidate path.
+    """
+    mt = generate_override_instructions(
+        constraints=constraints,
+        i0=i0,
+        plan=plan,
+        insertion_timing=insertion_timing,
+        client=client,
+        model=model,
+        previous_step4_reason=previous_step4_reason,
+        website=website,
+    )
+    if not _step3b_declined(plan, mt) or not plan.candidates:
+        return mt
+
+    saved = list(plan.candidates)
+    logger.info(
+        "STEP3B | declined with %d candidates; retrying with empty candidate list",
+        len(saved),
+    )
+    plan.candidates = []
+    mt = generate_override_instructions(
+        constraints=constraints,
+        i0=i0,
+        plan=plan,
+        insertion_timing=insertion_timing,
+        client=client,
+        model=model,
+        previous_step4_reason=previous_step4_reason,
+        website=website,
+    )
+    plan.candidates = saved
+    return mt
 
 
 def run_step3(
@@ -65,7 +121,7 @@ def run_step3(
         override_mode=override_mode,
     )
 
-    mt = generate_override_instructions(
+    mt = _generate_override_with_empty_retry(
         constraints=constraints,
         i0=i0,
         plan=plan,
@@ -75,6 +131,6 @@ def run_step3(
         previous_step4_reason=previous_step4_reason,
         website=website,
     )
-    if mt is None or not plan.enable_override or not plan.overrides:
+    if _step3b_declined(plan, mt):
         return plan, None
     return plan, mt
