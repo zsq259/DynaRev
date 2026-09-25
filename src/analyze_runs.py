@@ -33,6 +33,8 @@ def main() -> None:
         from src.analysis_lib.baseline_compare import main as run
     elif cmd == "curves":
         from src.analysis_lib.plot_cost_quality_curves import main as run
+    elif cmd == "score-thresholds":
+        from src.analysis_lib.plot_score_thresholds import main as run
     elif cmd in {"watch-run", "watch"}:
         from src.analysis_lib.watch_run import main as run
     elif cmd == "watch-pipeline":
@@ -41,7 +43,8 @@ def main() -> None:
         raise SystemExit(
             "unknown command: "
             f"{cmd}\n"
-            "use: matrix | eval-report | compare | baseline | curves | watch-run | watch-pipeline"
+            "use: matrix | eval-report | compare | baseline | curves | "
+            "score-thresholds | watch-run | watch-pipeline"
         )
     run()
 
