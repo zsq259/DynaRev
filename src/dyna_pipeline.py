@@ -38,6 +38,7 @@ from pipeline_lib.models import PipelineInput, PipelineOutput
 from pipeline_lib.step1_constraints import extract_constraints, should_filter_step1
 from pipeline_lib.step2_i0_design import design_i0
 from pipeline_lib.step3_router import run_step3
+from pipeline_lib.step3c_align import align_related_constraints
 from pipeline_lib.step4_review import review_quality
 from pipeline_lib.step5_binding import bind_constraints
 from utils.client import get_client
@@ -356,6 +357,7 @@ def run_pipeline(
                         output.step2 = None
                     output.step3a = None
                     output.step3 = None
+                    output.step3c = None
                     output.step4 = None
                     output.step5 = None
                     output.attempt_records.append(current_attempt)
@@ -380,11 +382,36 @@ def run_pipeline(
             output.attempt_records.append(current_attempt)
             return output
 
+        # ── Step 3c: sync descriptions that still state the old requirement ──
+        if (
+            instruction_track_mode == "override"
+            and output.step3a
+            and output.step3a.enable_override
+            and output.step3a.overrides
+        ):
+            logger.info("STEP3C | %s | Syncing related constraints...", task.task_id)
+            try:
+                output.step3c = align_related_constraints(
+                    output.step1,
+                    output.step3.instructions,
+                    output.step3a.overrides[0],
+                    output.step3a.override_mode,
+                    client,
+                    model,
+                )
+            except Exception as e:
+                output.filtered_at = "step3c"
+                output.filter_reason = f"LLM error: {str(e)[:200]}"
+                logger.error("STEP3C | %s | Failed: %s", task.task_id, output.filter_reason)
+                current_attempt["step3c_error"] = output.filter_reason
+                output.attempt_records.append(current_attempt)
+                return output
+
         # ── Step 5: Constraint Binding ──
         logger.info("STEP5 | %s | Binding constraints to instructions... (attempt %d)", task.task_id, retry_count + 1)
         try:
             output.step5 = bind_constraints(
-                output.step1,
+                output.step3c or output.step1,
                 output.step2,
                 output.step3,
                 client,
@@ -427,6 +454,7 @@ def run_pipeline(
                     output.step2 = None
                 output.step3a = None
                 output.step3 = None
+                output.step3c = None
                 output.step4 = None
                 output.step5 = None
                 output.attempt_records.append(current_attempt)
@@ -563,6 +591,11 @@ def save_pipeline_report(outputs: List[PipelineOutput], path: str) -> None:
                     for item in o.step3a.overrides
                 ],
             }
+        if o.step3c:
+            entry["step3c_constraints"] = [
+                {"id": c.id, "description": c.description}
+                for c in o.step3c.constraints
+            ]
         if o.step3:
             entry["step3_instructions"] = [
                 {

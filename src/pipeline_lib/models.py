@@ -138,6 +138,7 @@ class PipelineOutput:
     step2: Optional[I0Result] = None
     step3a: Optional['OverridePlanResult'] = None
     step3: Optional[MultiturnResult] = None
+    step3c: Optional[ConstraintResult] = None
     step4: Optional[ReviewResult] = None
     step5: Optional['BindingResult'] = None
     attempt_records: List[Dict[str, Any]] = field(default_factory=list)

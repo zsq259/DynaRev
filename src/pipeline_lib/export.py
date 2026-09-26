@@ -84,17 +84,20 @@ def to_dyna_task_json(output: PipelineOutput) -> Dict[str, Any]:
         if iid == "i0"
     ]
 
-    # Build constraints with source_revision binding
+    # Build constraints with source_revision binding.
+    # Step 3c may have rewritten descriptions that still stated the old requirement.
     constraints_list = []
-    if output.step1:
-        for c in output.step1.constraints:
-            description = override_replacement_by_constraint_id.get(c.id, c.description)
-            entry: Dict[str, Any] = {
-                "id": c.id,
-                "description": description,
-                "source_revision": constraint_id_to_revision.get(c.id, "unknown"),
-            }
-            constraints_list.append(entry)
+    constraint_rows = output.step3c.constraints if output.step3c else (
+        output.step1.constraints if output.step1 else []
+    )
+    for c in constraint_rows:
+        description = override_replacement_by_constraint_id.get(c.id, c.description)
+        entry: Dict[str, Any] = {
+            "id": c.id,
+            "description": description,
+            "source_revision": constraint_id_to_revision.get(c.id, "unknown"),
+        }
+        constraints_list.append(entry)
 
     branch_policy: Any = []
 

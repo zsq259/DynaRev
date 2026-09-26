@@ -509,6 +509,52 @@ Multi-turn redesign:
 {redesign}"""
 
 
+# ── Step 3c: Sync related constraint wording ────────────────────────────────
+
+STEP3C_USER = """\
+This is the whole task:
+
+{instructions}
+
+The user's requirements change during the task. A revision in a later turn may override an earlier requirement, or select according to a condition, and that decides some requirements of the final goal.
+
+There are several constraints describing the requirements of the final goal. Each constraint is independent of the others, and together they describe the final goal.
+
+{constraints}
+
+Because the user's requirements changed, one constraint has already been updated correctly:
+- id: {target_id}
+- before: {keep}
+- now: {now}
+
+Other constraints may still contain related wording that was not updated. Find those descriptions and change them so they agree with this updated constraint.
+
+Return JSON:
+{{"edits": [{{"id": <int>, "description": "<updated sentence>"}}]}}
+
+Example:
+
+This is the whole task:
+i0: Find a certified refurbished iPad Air in blue with 256GB storage.
+i1: Pick the cheapest one.
+i2: Change the storage to 512GB. Keep the blue color and the cheapest pick.
+
+Constraints:
+1. Color must be blue.
+2. Storage capacity must be 512GB.
+3. The selected product must be the cheapest among certified refurbished iPad Air models with 256GB storage in blue.
+
+One constraint has already been updated correctly:
+- id: 2
+- before: Storage capacity must be 256GB.
+- now: Storage capacity must be 512GB.
+
+{{"edits": [{{"id": 3, "description": "The selected product must be the cheapest among certified refurbished iPad Air models with 512GB storage in blue."}}]}}
+
+Now do this for the task above.
+"""
+
+
 # ── Step 5: Constraint Binding ──────────────────────────────────────────────
 
 STEP5_SYSTEM = (
