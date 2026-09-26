@@ -593,7 +593,11 @@ def save_pipeline_report(outputs: List[PipelineOutput], path: str) -> None:
             }
         if o.step3c:
             entry["step3c_constraints"] = [
-                {"id": c.id, "description": c.description}
+                {
+                    "id": c.id,
+                    "description": c.description,
+                    **({"branch": c.branch} if c.branch else {}),
+                }
                 for c in o.step3c.constraints
             ]
         if o.step3:

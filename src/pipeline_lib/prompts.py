@@ -554,6 +554,51 @@ One constraint has already been updated correctly:
 Now do this for the task above.
 """
 
+STEP3C_CONDITIONAL_USER = """\
+This is the whole task:
+
+{instructions}
+
+The user's requirements change during the task. A revision in a later turn may override an earlier requirement, or select according to a condition, and that decides some requirements of the final goal.
+
+There are several constraints describing the requirements of the final goal. Each constraint is independent of the others, and together they describe the final goal.
+
+{constraints}
+
+Because the user's requirements changed, one constraint is decided by a condition. It has two outcomes:
+- id: {target_id}
+- default: {keep}
+- alternative: {change_to}
+- condition: {condition}
+
+Other constraints may still restate the default outcome only. For each of those, write two sentences: one for the default outcome, one for the alternative. Do not merge them into one sentence with if.
+
+Return JSON:
+{{"splits": [{{"id": <int>, "default": "<sentence>", "alternative": "<sentence>"}}]}}
+
+Example:
+
+This is the whole task:
+i0: Find a certified refurbished iPad Air in blue with 256GB storage.
+i1: I still prefer blue. But if fewer than 1 blue option is listed, Space Gray is acceptable.
+i2: Pick the cheapest one under that color rule.
+
+Constraints:
+1. Color must be blue.
+2. Storage capacity must be 256GB.
+3. The selected product must be the cheapest among certified refurbished iPad Air models with 256GB storage in blue.
+
+One constraint is decided by a condition:
+- id: 1
+- default: Color must be blue.
+- alternative: Color may be Space Gray.
+- condition: fewer than 1 blue certified refurbished iPad Air with 256GB is listed.
+
+{{"splits": [{{"id": 3, "default": "The selected product must be the cheapest among certified refurbished iPad Air models with 256GB storage in blue.", "alternative": "The selected product must be the cheapest among certified refurbished iPad Air models with 256GB storage in Space Gray."}}]}}
+
+Now do this for the task above.
+"""
+
 
 # ── Step 5: Constraint Binding ──────────────────────────────────────────────
 

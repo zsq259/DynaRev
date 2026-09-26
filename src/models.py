@@ -32,9 +32,19 @@ class Milestone:
 @dataclass
 class BranchPolicy:
     condition_text: str
-    default_constraint_id: int
-    alternative_constraint_id: int
+    default_constraint_ids: List[int]
+    alternative_constraint_ids: List[int]
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def default_constraint_id(self) -> int:
+        """First default id (compat for callers that expect a single id)."""
+        return self.default_constraint_ids[0]
+
+    @property
+    def alternative_constraint_id(self) -> int:
+        """First alternative id (compat for callers that expect a single id)."""
+        return self.alternative_constraint_ids[0]
 
 
 @dataclass

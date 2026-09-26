@@ -345,6 +345,9 @@ class TaskEvaluator:
         if bp is None:
             return None
 
+        default_ids = list(bp.default_constraint_ids)
+        alternative_ids = list(bp.alternative_constraint_ids)
+
         states_by_id: Dict[int, ScanState] = {}
         for s in states:
             try:
@@ -352,34 +355,32 @@ class TaskEvaluator:
             except (ValueError, IndexError):
                 pass
 
-        default_state = states_by_id.get(bp.default_constraint_id)
-        alt_state = states_by_id.get(bp.alternative_constraint_id)
+        default_states = [states_by_id[i] for i in default_ids if i in states_by_id]
+        alt_states = [states_by_id[i] for i in alternative_ids if i in states_by_id]
 
-        if default_state is None or alt_state is None:
-            # Malformed binding — surface but don't crash.
+        if len(default_states) != len(default_ids) or len(alt_states) != len(alternative_ids):
             return {
                 "condition_text": bp.condition_text,
                 "condition_state": "not_addressed",
                 "active_branch": "unaddressed",
+                "active_constraint_ids": [],
                 "active_constraint_id": None,
                 "skipped_constraint_ids": [],
                 "reason": (
                     "branch_policy references constraint id(s) not in task; "
-                    f"default={bp.default_constraint_id} "
-                    f"alt={bp.alternative_constraint_id}"
+                    f"default={default_ids} alt={alternative_ids}"
                 ),
                 "confidence": 0.0,
             }
 
-        # Both default and alternative bind to the same conditional
-        # revision (export-time invariant). If that revision did not
-        # fire, both states are not_fired by Phase 0 — Phase A skips
-        # branch resolution and lets not_fired locks stand.
-        if not default_state.fired and not alt_state.fired:
+        # Target pair is first in each group. Related defaults may bind to an
+        # earlier turn and fire even when the conditional revision did not.
+        if not default_states[0].fired and not alt_states[0].fired:
             return {
                 "condition_text": bp.condition_text,
                 "condition_state": "not_delivered",
                 "active_branch": "none",
+                "active_constraint_ids": [],
                 "active_constraint_id": None,
                 "skipped_constraint_ids": [],
                 "reason": (
@@ -401,38 +402,40 @@ class TaskEvaluator:
         confidence = float(result.get("confidence", 0.0))
 
         if state == "true":
-            self._lock_skipped(default_state, "branch_skipped")
+            for s in default_states:
+                self._lock_skipped(s, "branch_skipped")
             return {
                 "condition_text": bp.condition_text,
                 "condition_state": "true",
                 "active_branch": "alternative",
-                "active_constraint_id": bp.alternative_constraint_id,
-                "skipped_constraint_ids": [bp.default_constraint_id],
+                "active_constraint_ids": alternative_ids,
+                "active_constraint_id": alternative_ids[0],
+                "skipped_constraint_ids": default_ids,
                 "reason": reason,
                 "confidence": confidence,
             }
         if state == "false":
-            self._lock_skipped(alt_state, "branch_skipped")
+            for s in alt_states:
+                self._lock_skipped(s, "branch_skipped")
             return {
                 "condition_text": bp.condition_text,
                 "condition_state": "false",
                 "active_branch": "default",
-                "active_constraint_id": bp.default_constraint_id,
-                "skipped_constraint_ids": [bp.alternative_constraint_id],
+                "active_constraint_ids": default_ids,
+                "active_constraint_id": default_ids[0],
+                "skipped_constraint_ids": alternative_ids,
                 "reason": reason,
                 "confidence": confidence,
             }
-        # not_addressed
-        self._lock_skipped(default_state, "conditional_unaddressed")
-        self._lock_skipped(alt_state, "conditional_unaddressed")
+        for s in default_states + alt_states:
+            self._lock_skipped(s, "conditional_unaddressed")
         return {
             "condition_text": bp.condition_text,
             "condition_state": "not_addressed",
             "active_branch": "unaddressed",
+            "active_constraint_ids": [],
             "active_constraint_id": None,
-            "skipped_constraint_ids": [
-                bp.default_constraint_id, bp.alternative_constraint_id
-            ],
+            "skipped_constraint_ids": default_ids + alternative_ids,
             "reason": reason,
             "confidence": confidence,
         }

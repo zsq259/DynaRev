@@ -29,12 +29,10 @@ REVISION_KEYS = {
 }
 MILESTONE_KEYS = {"milestone_id", "inject_revision_id", "semantic_concept"}
 CONSTRAINT_KEYS = {"id", "description", "source_revision"}
-BRANCH_POLICY_KEYS = {
-    "condition_text",
-    "default_constraint_id",
-    "alternative_constraint_id",
-    "metadata",
-}
+BRANCH_POLICY_KEYS_REQUIRED = {"condition_text", "metadata"}
+BRANCH_POLICY_ID_KEYS_OLD = {"default_constraint_id", "alternative_constraint_id"}
+BRANCH_POLICY_ID_KEYS_NEW = {"default_constraint_ids", "alternative_constraint_ids"}
+BRANCH_POLICY_KEYS = BRANCH_POLICY_KEYS_REQUIRED | BRANCH_POLICY_ID_KEYS_OLD | BRANCH_POLICY_ID_KEYS_NEW
 REVISION_TYPES = {"additive", "override", "conditional_override"}
 BRANCHES = {"default", "alternative"}
 
@@ -232,8 +230,62 @@ def _validate_task(raw: Any) -> None:
         if len(conditional_ids) != 1:
             _fail("instruction_timeline.revisions", "must contain at most one conditional override")
         policy = _mapping(policy_raw, "branch_policy")
-        _keys(policy, BRANCH_POLICY_KEYS, "branch_policy")
+        _keys(
+            policy,
+            BRANCH_POLICY_KEYS_REQUIRED,
+            "branch_policy",
+            BRANCH_POLICY_ID_KEYS_OLD | BRANCH_POLICY_ID_KEYS_NEW,
+        )
         _string(policy["condition_text"], "branch_policy.condition_text")
+        default_ids, alternative_ids = _branch_policy_id_lists(policy)
+        if not default_ids or not alternative_ids:
+            _fail("branch_policy", "default and alternative groups must be non-empty")
+        if set(default_ids) & set(alternative_ids):
+            _fail("branch_policy", "default and alternative groups must be disjoint")
+        expected_tags = {
+            **{cid: "default" for cid in default_ids},
+            **{cid: "alternative" for cid in alternative_ids},
+        }
+        if branch_tags != expected_tags:
+            _fail(
+                "branch_policy",
+                "constraint branch tags must match its default and alternative ID groups",
+            )
+        for cid in default_ids + alternative_ids:
+            if cid not in by_id:
+                _fail("branch_policy", f"unknown constraint ID: {cid}")
+        _mapping(policy["metadata"], "branch_policy.metadata")
+    else:
+        if policy_raw != []:
+            _fail("branch_policy", "must be [] when there is no conditional override")
+        if branch_tags:
+            _fail("constraints", "branch tags require a conditional override")
+
+
+def _branch_policy_id_lists(policy: Mapping[str, Any]) -> tuple[list[int], list[int]]:
+    """Normalize singular or plural branch_policy id fields into two lists."""
+    has_new = (
+        "default_constraint_ids" in policy or "alternative_constraint_ids" in policy
+    )
+    has_old = (
+        "default_constraint_id" in policy or "alternative_constraint_id" in policy
+    )
+    if has_new and has_old:
+        _fail(
+            "branch_policy",
+            "use either default/alternative_constraint_id or *_ids, not both",
+        )
+    if has_new:
+        default_ids = _constraint_ids(
+            policy.get("default_constraint_ids", []),
+            "branch_policy.default_constraint_ids",
+        )
+        alternative_ids = _constraint_ids(
+            policy.get("alternative_constraint_ids", []),
+            "branch_policy.alternative_constraint_ids",
+        )
+        return default_ids, alternative_ids
+    if has_old:
         default_id = _integer(
             policy["default_constraint_id"], "branch_policy.default_constraint_id"
         )
@@ -241,19 +293,12 @@ def _validate_task(raw: Any) -> None:
             policy["alternative_constraint_id"],
             "branch_policy.alternative_constraint_id",
         )
-        if default_id == alternative_id:
-            _fail("branch_policy", "default and alternative constraint IDs must differ")
-        if branch_tags != {default_id: "default", alternative_id: "alternative"}:
-            _fail(
-                "branch_policy",
-                "constraint branch tags must match its default and alternative IDs",
-            )
-        _mapping(policy["metadata"], "branch_policy.metadata")
-    else:
-        if policy_raw != []:
-            _fail("branch_policy", "must be [] when there is no conditional override")
-        if branch_tags:
-            _fail("constraints", "branch tags require a conditional override")
+        return [default_id], [alternative_id]
+    _fail(
+        "branch_policy",
+        "missing default/alternative constraint id fields",
+    )
+    return [], []
 
 
 def _parse_task(raw: Mapping[str, Any]) -> TaskInstance:
@@ -284,10 +329,11 @@ def _parse_task(raw: Mapping[str, Any]) -> TaskInstance:
     bp_raw = raw["branch_policy"]
     branch_policy: Optional[BranchPolicy] = None
     if isinstance(bp_raw, dict):
+        default_ids, alternative_ids = _branch_policy_id_lists(bp_raw)
         branch_policy = BranchPolicy(
             condition_text=bp_raw["condition_text"],
-            default_constraint_id=bp_raw["default_constraint_id"],
-            alternative_constraint_id=bp_raw["alternative_constraint_id"],
+            default_constraint_ids=default_ids,
+            alternative_constraint_ids=alternative_ids,
             metadata=bp_raw["metadata"],
         )
     return TaskInstance(

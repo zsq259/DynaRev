@@ -11,6 +11,21 @@ class Constraint:
 
 
 @dataclass
+class AlignedConstraint:
+    """Constraint after Step 3c; may carry a conditional branch tag."""
+    id: int
+    description: str
+    branch: Optional[str] = None  # None | "default" | "alternative"
+
+
+@dataclass
+class AlignResult:
+    """Step 3c output: final constraint wording (and groups for conditional)."""
+    original_instruction: str
+    constraints: List[AlignedConstraint]
+
+
+@dataclass
 class ConstraintResult:
     """Step 1 output."""
     original_instruction: str
@@ -138,7 +153,7 @@ class PipelineOutput:
     step2: Optional[I0Result] = None
     step3a: Optional['OverridePlanResult'] = None
     step3: Optional[MultiturnResult] = None
-    step3c: Optional[ConstraintResult] = None
+    step3c: Optional[AlignResult] = None
     step4: Optional[ReviewResult] = None
     step5: Optional['BindingResult'] = None
     attempt_records: List[Dict[str, Any]] = field(default_factory=list)

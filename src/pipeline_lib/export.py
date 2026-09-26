@@ -1,7 +1,7 @@
 """Convert pipeline output to dyna_tasks_v2.jsonl format."""
 
 import json
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from .models import PipelineOutput
 
@@ -9,13 +9,10 @@ from .models import PipelineOutput
 def to_dyna_task_json(output: PipelineOutput) -> Dict[str, Any]:
     """Convert a successful PipelineOutput to dyna_task_v2 JSON structure.
 
-    Conditional override (override_mode='conditional'): the default-branch
-    constraint uses Step 3b ``keep`` and a synthetic alternative constraint
-    uses ``change_to``, bound to the conditional revision. ``branch_policy``
-    carries the LLM-readable condition_text plus the constraint id pointers
-    for evaluator Phase A.
-    Unconditional override and base tracks emit ``branch_policy: []`` as
-    before.
+    Conditional override: Step 3c builds default / alternative constraint
+    groups; export serializes them and lists their ids in ``branch_policy``.
+    Unconditional override may rewrite the target id to change_to; base
+    tracks emit ``branch_policy: []``.
     """
     inp = output.input
     mt = output.step3
@@ -24,7 +21,6 @@ def to_dyna_task_json(output: PipelineOutput) -> Dict[str, Any]:
 
     i0_inst = mt.instructions[0]
 
-    # Build constraint-to-instruction mapping from Step 5 (if available)
     constraint_id_to_revision: Dict[int, str] = {}
     if output.step5:
         for entry in output.step5.mapping:
@@ -36,8 +32,6 @@ def to_dyna_task_json(output: PipelineOutput) -> Dict[str, Any]:
         and output.step3a.override_mode == "conditional"
     )
 
-    # Unconditional: evaluation uses Step 3b change_to as the constraint text.
-    # Conditional: default gold is keep; alt is appended as change_to.
     override_replacement_by_constraint_id: Dict[int, str] = {}
     if (
         output.step3a
@@ -46,11 +40,10 @@ def to_dyna_task_json(output: PipelineOutput) -> Dict[str, Any]:
     ):
         for item in output.step3a.overrides:
             if item.replacement_constraint_text:
-                override_replacement_by_constraint_id[item.target_constraint_id] = item.replacement_constraint_text
+                override_replacement_by_constraint_id[item.target_constraint_id] = (
+                    item.replacement_constraint_text
+                )
 
-    # Build revisions from instructions (skip i0 which is instructions[0])
-    # Track which revision is the conditional override (only one per
-    # task in v1 of conditional pipeline).
     conditional_revision_id: str = ""
     revisions = []
     for inst in mt.instructions[1:]:
@@ -69,7 +62,6 @@ def to_dyna_task_json(output: PipelineOutput) -> Dict[str, Any]:
             "constraint_ids": rev_constraint_ids,
         })
 
-    # Build milestones from instruction-level milestone definitions
     milestones = []
     for inst in mt.instructions[1:]:
         milestones.append({
@@ -78,15 +70,12 @@ def to_dyna_task_json(output: PipelineOutput) -> Dict[str, Any]:
             "semantic_concept": inst.milestone,
         })
 
-    # Build i0 constraint_ids from Step 5 mapping
     i0_constraint_ids = [
         cid for cid, iid in constraint_id_to_revision.items()
         if iid == "i0"
     ]
 
-    # Build constraints with source_revision binding.
-    # Step 3c may have rewritten descriptions that still stated the old requirement.
-    constraints_list = []
+    constraints_list: List[Dict[str, Any]] = []
     constraint_rows = output.step3c.constraints if output.step3c else (
         output.step1.constraints if output.step1 else []
     )
@@ -97,41 +86,67 @@ def to_dyna_task_json(output: PipelineOutput) -> Dict[str, Any]:
             "description": description,
             "source_revision": constraint_id_to_revision.get(c.id, "unknown"),
         }
+        branch = getattr(c, "branch", None)
+        if branch:
+            entry["branch"] = branch
         constraints_list.append(entry)
 
     branch_policy: Any = []
 
     if is_conditional and output.step3a:
-        # Pick first override item — current pipeline allows at most one.
         item = output.step3a.overrides[0]
         sc = item.switching_condition
         if sc is not None and conditional_revision_id:
-            # Tag the default-branch constraint; gold is 3b keep, not Step 1.
-            for c_entry in constraints_list:
-                if c_entry["id"] == item.target_constraint_id:
-                    c_entry["branch"] = "default"
-                    if item.target_constraint_text:
-                        c_entry["description"] = item.target_constraint_text
-                    break
-            # Append synthetic alternative-branch constraint
-            existing_ids = {c["id"] for c in constraints_list}
-            alt_id = max(existing_ids) + 1 if existing_ids else 1
-            constraints_list.append({
-                "id": alt_id,
-                "description": item.replacement_constraint_text,
-                "source_revision": conditional_revision_id,
-                "branch": "alternative",
-            })
-            # Bind alt id to conditional revision in revision listing
+            has_groups = any(
+                c.get("branch") in ("default", "alternative") for c in constraints_list
+            )
+            if not has_groups:
+                # Fallback when Step 3c did not run: split target only.
+                for c_entry in constraints_list:
+                    if c_entry["id"] == item.target_constraint_id:
+                        c_entry["branch"] = "default"
+                        if item.target_constraint_text:
+                            c_entry["description"] = item.target_constraint_text
+                        break
+                existing_ids = {c["id"] for c in constraints_list}
+                alt_id = max(existing_ids) + 1 if existing_ids else 1
+                constraints_list.append({
+                    "id": alt_id,
+                    "description": item.replacement_constraint_text,
+                    "source_revision": constraint_id_to_revision.get(
+                        alt_id, conditional_revision_id
+                    ),
+                    "branch": "alternative",
+                })
+                for r in revisions:
+                    if r["revision_id"] == conditional_revision_id:
+                        if alt_id not in r["constraint_ids"]:
+                            r["constraint_ids"].append(alt_id)
+                        break
+
+            default_ids = [
+                c["id"] for c in constraints_list if c.get("branch") == "default"
+            ]
+            alternative_ids = [
+                c["id"] for c in constraints_list if c.get("branch") == "alternative"
+            ]
+            # Ensure alt rows bound in revision listing when Step 5 missed them.
             for r in revisions:
-                if r["revision_id"] == conditional_revision_id:
-                    if alt_id not in r["constraint_ids"]:
-                        r["constraint_ids"].append(alt_id)
-                    break
+                if r["revision_id"] != conditional_revision_id:
+                    continue
+                for aid in alternative_ids:
+                    if aid not in r["constraint_ids"]:
+                        r["constraint_ids"].append(aid)
+                    if constraint_id_to_revision.get(aid) is None:
+                        for c_entry in constraints_list:
+                            if c_entry["id"] == aid and c_entry["source_revision"] == "unknown":
+                                c_entry["source_revision"] = conditional_revision_id
+                break
+
             branch_policy = {
                 "condition_text": sc.condition_text,
-                "default_constraint_id": item.target_constraint_id,
-                "alternative_constraint_id": alt_id,
+                "default_constraint_ids": default_ids,
+                "alternative_constraint_ids": alternative_ids,
                 "metadata": {
                     "switching_dimension": sc.dimension,
                     "operator": sc.operator,

@@ -5,12 +5,12 @@ import json
 from openai import OpenAI
 
 from utils.llm import llm_json_call
-from .models import BindingEntry, BindingResult, ConstraintResult, I0Result, MultiturnResult
+from .models import AlignResult, BindingEntry, BindingResult, ConstraintResult, I0Result, MultiturnResult
 from .prompts import STEP5_SYSTEM, STEP5_USER
 
 
 def bind_constraints(
-    constraints: ConstraintResult,
+    constraints: ConstraintResult | AlignResult,
     i0: I0Result,
     multiturn: MultiturnResult,
     client: OpenAI,
@@ -18,11 +18,14 @@ def bind_constraints(
     override_context: dict | None = None,
 ) -> BindingResult:
     """Run Step 5: bind each constraint to the instruction that covers it."""
-    constraints_json = json.dumps(
-        [{"id": c.id, "description": c.description} for c in constraints.constraints],
-        ensure_ascii=False,
-        indent=2,
-    )
+    rows = []
+    for c in constraints.constraints:
+        row = {"id": c.id, "description": c.description}
+        branch = getattr(c, "branch", None)
+        if branch:
+            row["branch"] = branch
+        rows.append(row)
+    constraints_json = json.dumps(rows, ensure_ascii=False, indent=2)
 
     instructions_json = json.dumps(
         [
@@ -41,16 +44,13 @@ def bind_constraints(
             override_context_block = (
                 "Override context:\n"
                 f"{ctx_json}\n\n"
-                "This is a conditional override (override_mode=conditional). Bind "
-                "target_constraint to the conditional_override revision — that's where "
-                "the dimension's outcome is decided.\n\n"
-                "The replacement_constraint text (Step 3b change_to) only appears in "
-                "override_context above. It is NOT a row in your constraints list, and no "
-                "instruction needs to deliver it as a hard requirement. Export-time "
-                "post-processing adds it to the final task as a synthetic alt-branch "
-                "constraint after Step 5. Don't try to bind it. "
-                "target_constraint is Step 3b keep; bind the listed constraint id to the "
-                "conditional_override revision."
+                "This is a conditional override (override_mode=conditional). "
+                "Constraints may carry branch=default or branch=alternative.\n"
+                "- Bind the target default constraint and every branch=alternative "
+                "constraint to the conditional_override revision.\n"
+                "- Bind other branch=default constraints to the instruction that "
+                "introduces that requirement (e.g. cheapest stays on the turn that "
+                "asks for cheapest)."
             )
         else:
             override_context_block = (
