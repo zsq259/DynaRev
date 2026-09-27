@@ -823,24 +823,50 @@ STEP3_OVERRIDE_CONDITIONAL_BLOCK = """\
 
 Use a candidate row if any exist; otherwise use the empty-candidate rules. \
 The default stays `keep`. `change_to` is accepted only when a \
-page-observable condition holds:
+page-observable condition holds.
+
+A conditional override has two axes:
+
+- Replacement dimension — the preference that changes between `keep` and \
+`change_to` (what the user is willing to revise: color, ticket type, \
+distance, a rating bar, how many items, and so on).
+- Condition dimension (`quantity`) — what is read from the page to decide \
+whether the alternative is allowed. Choose it on its own. It may be the \
+same as the replacement dimension, or different from it.
+
+Condition dimension is one of:
+- price  — a listed price or a price gap (include a currency)
+- rating — stars, rank, or a similar score
+- time   — duration, clock time, or recency on the page
+- count  — how many results match a preference on the page
+
+Choose a quantity this website can actually show. Write the condition only \
+(not the replacement pair) in this form:
 
   (QUANTITY) ( > or < ) (NUMBER)
 
-QUANTITY is one of:
-- count  — how many results match the default. `< 1` means none available; a larger \
-NUMBER means too few. If the task asks for K items, K is a reasonable NUMBER.
-- price  — a listed price or price gap (include a currency)
-- rating — stars, rank, or similar score
-- time   — duration, or age / recency on the page
+Those two axes combine in two natural ways:
 
-Choose QUANTITY from what this website can actually show. Candidate \
-`pair_dimension` is the pair's own axis (color, year, …), not QUANTITY.
+1. Advantage / cost — The condition compares the default outcome and the \
+alternative outcome on price, rating, or time (for example, how much more \
+the preferred option costs than the fallback). The replacement dimension \
+is usually a categorical preference; the condition dimension is the \
+tradeoff being weighed.
 
-Do not restate the pair as the condition. If the pair itself is a quota \
-(find 10 vs find 5), "not enough matching results" is a valid count condition.
+2. Existence — The condition is that the results required under the default \
+preference are not there: one matching result, or the K results the task \
+asked for. The user then relaxes the preference, or relaxes how many are \
+required. `count` is the usual quantity here.
 
-Fill NUMBER from the task.
+Prefer a condition a real user would say after seeing results: a tradeoff \
+they would weigh, or a shortfall they would notice. The numbers should come \
+from the task and the page, so the reason for changing one's mind is easy to \
+follow. Conditions that almost never fire, almost always fire, or only restate \
+that nothing matched, rarely sound like real speech.
+
+Do not restate the replacement pair as the condition itself.
+
+Fill NUMBER from the task and the page.
 
 The revision must keep `keep` as the default, state the condition with the \
 concrete number, and accept `change_to` only if the condition holds. \
@@ -861,7 +887,7 @@ Do not write a flat override.
 - `replacement_pair_id` copied from a candidate row, or null if proposing
 - `keep` / `change_to` (required; different preferences)
 - if proposing: `pair_dimension`
-- `quantity`: count | price | rating | time
+- `quantity`: price | rating | time | count
 - `operator`: > or <
 - `threshold`: the NUMBER
 - `unit`: e.g. USD, or ""
@@ -869,20 +895,39 @@ Do not write a flat override.
 Copy real candidate ids in your output; do not reuse the example ids.
 
 Examples (keep → change_to, condition):
-- keep="Selected flight is non-red-eye", change_to="Selected flight is red-eye",
+
+Advantage / cost:
+- Replacement: non-red-eye ↔ red-eye. Condition: price gap.
+  keep="Selected flight is non-red-eye", change_to="Selected flight is red-eye",
   quantity=price, operator=">", threshold=500, unit="RMB"
-  Good: "I prefer no red-eye flights. But if non-red-eye flights are at least 500 RMB more expensive than the cheapest red-eye, red-eye is acceptable."
-  Bad: "Actually, switch to red-eye." (flat override — no condition)
-  Bad: "If it's expensive, red-eye is fine." (vague — must keep a concrete number)
-- keep="Color must be black", change_to="Color must be white",
-  quantity=count, operator="<", threshold=1
-  Good: "I want a black sofa. But if no black option is available, white is also fine."
-- keep="Comics must feature Batman", change_to="Comics need not feature Batman",
+  Good: "I prefer no red-eye flights. But if non-red-eye flights are at least \
+500 RMB more expensive than the cheapest red-eye, red-eye is acceptable."
+- Replacement: blue ↔ Space Gray. Condition: price gap.
+  keep="Color must be blue", change_to="Color must be Space Gray",
+  quantity=price, operator=">", threshold=50, unit="USD"
+  Good: "I still want blue. But if the cheapest blue is more than $50 above \
+the cheapest Space Gray, Space Gray is fine."
+
+Existence:
+- Replacement: must feature Batman ↔ need not. Condition: count.
+  keep="Comics must feature Batman", change_to="Comics need not feature Batman",
   quantity=count, operator="<", threshold=2
-  Good: "I prefer keeping the Batman requirement. If fewer than two such comics are listed, drop the Batman filter."
-- Empty-candidate (IMDb): keep = "premiered in 2024",
-  change_to = "premiered in 2023", quantity=count, operator="<", threshold=3
-  Good: "I still want 2024. If fewer than 3 such movies with matching China/US theatrical dates are listed, 2023 is acceptable."
+  Good: "I prefer keeping the Batman requirement. If fewer than two such \
+comics are listed, drop the Batman filter."
+- Replacement: need five → accept three. Condition: count.
+  keep="Find five matching items", change_to="Three matching items are enough",
+  quantity=count, operator="<", threshold=5
+  Good: "I want five. If fewer than five are listed under that filter, three \
+is fine."
+
+Unnatural (users do not talk this way):
+- "If there are fewer than 3 blue options, black is fine" when they only need \
+one item. The task never asked for three; the 3 is invented, so the cutoff \
+does not explain a real shortfall the user cares about.
+- "If the cheapest blue is above $500, accept Space Gray." Crossing an \
+absolute dollar amount does not say why gray becomes acceptable — blue may \
+still be the better deal than gray, and a real user would compare the two \
+colors (or notice blue is missing), not switch color at a round price tag.
 
 Full timeline:
 
@@ -892,27 +937,24 @@ Full timeline:
   "selected": {
     "target_constraint_id": 3,
     "replacement_pair_id": "from_a_candidate_row",
-    "keep": "Comics must feature Batman.",
-    "change_to": "Comics need not feature Batman.",
-    "quantity": "count",
-    "operator": "<",
-    "threshold": 2,
-    "unit": ""
+    "keep": "Selected flight is non-red-eye.",
+    "change_to": "Selected flight is red-eye.",
+    "quantity": "price",
+    "operator": ">",
+    "threshold": 500,
+    "unit": "RMB"
   },
   "instructions": [
-    {"id": 0, "instruction": "On DC.com, find Injustice: Gods Among Us Year One and other comic books by the same author."},
-    {"id": 1, "instruction": "Only keep ones that feature Batman.",
-     "milestone": "The DC.com search for Injustice: Gods Among Us Year One and other comic books by the same author is established.",
+    {"id": 0, "instruction": "Search Ctrip for flights from Beijing to Shanghai departing the day after tomorrow."},
+    {"id": 1, "instruction": "Only keep non-red-eye options.",
+     "milestone": "A Beijing–Shanghai search for the day after tomorrow is underway with non-red-eye as the default.",
      "type": "additive"},
-    {"id": 2, "instruction": "I prefer keeping the Batman requirement. If fewer than two such comics are listed, drop the Batman filter and keep comics by that author.",
-     "milestone": "The search for comics by the Year One author is being carried out under the Batman-feature criterion.",
+    {"id": 2, "instruction": "I prefer no red-eye flights. But if non-red-eye flights are at least 500 RMB more expensive than the cheapest red-eye, red-eye is acceptable.",
+     "milestone": "The flight search is running under the non-red-eye preference, with a priced red-eye fallback if the gap is large enough.",
      "type": "conditional_override",
-     "condition_text": "DC.com results for comic books by the same author as Injustice: Gods Among Us Year One that feature Batman list fewer than 2 comics besides Year One."},
-    {"id": 3, "instruction": "I want three of them, each from a different series, and not Injustice: Gods Among Us Year One itself.",
-     "milestone": "The working search for comics by the Year One author follows the character branch: the Batman requirement remains after the default match count is known, or the Batman filter has been dropped.",
-     "type": "additive"},
-    {"id": 4, "instruction": "Give the DC.com page link for Year One and for each of those three comics.",
-     "milestone": "Three comics by that author, from different series and excluding Injustice itself, are being identified on the working character branch.",
+     "condition_text": "The cheapest non-red-eye Beijing–Shanghai flight for the day after tomorrow is more than 500 RMB above the cheapest red-eye on Ctrip."},
+    {"id": 3, "instruction": "Pick one matching flight and tell me the flight number and price.",
+     "milestone": "A flight on the active red-eye branch has been identified with its number and price.",
      "type": "additive"}
   ]
 }
