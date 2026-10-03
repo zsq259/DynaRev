@@ -13,6 +13,9 @@ Outputs (--label prefix, suffix depends on --cost steps|tokens):
   - {label}_ce_{cost}.json
   - {label}_cost_curves_{cost}.{svg,pdf,png}
   - {label}_cost_curves_{cost}.metadata.json
+
+``plot_curves_combined`` also writes a double-column 1×4 figure
+(CTS/CCS × steps/tokens) as ``{label}_cost_curves_combined.*``.
 """
 
 from __future__ import annotations
@@ -313,6 +316,88 @@ def write_curves(
         writer.writerows(rows)
 
 
+def _budget_key(cost_kind: str) -> str:
+    return "action_budget" if cost_kind == "steps" else "token_budget"
+
+
+def _cost_xlabel(cost_kind: str) -> str:
+    return "Action-step budget" if cost_kind == "steps" else "Token budget"
+
+
+def _draw_curve_axis(
+    axis,
+    rows: list[dict[str, int | float | str]],
+    max_budget: int,
+    cost_kind: str,
+    metric: str,
+    title: str,
+    model_colors: dict[str, str],
+    *,
+    show_ylabel: bool = True,
+) -> None:
+    from matplotlib.ticker import FuncFormatter, MaxNLocator
+
+    budget_key = _budget_key(cost_kind)
+    marker_every = max(1, max_budget // 10)
+    observed_max = max(float(row[metric]) for row in rows)
+    y_max = (
+        max(1.0, math.ceil(observed_max + 1.0))
+        if metric == "cts"
+        else max(5.0, math.ceil((observed_max * 1.1) / 5.0) * 5.0)
+    )
+    for model in model_colors:
+        model_rows = [row for row in rows if row["model"] == model]
+        axis.plot(
+            [int(row[budget_key]) for row in model_rows],
+            [float(row[metric]) for row in model_rows],
+            label=model,
+            color=model_colors[model],
+            linewidth=2.1,
+            marker="o",
+            markersize=3.3,
+            markevery=marker_every,
+        )
+    axis.set_title(title)
+    axis.set_xlabel(_cost_xlabel(cost_kind))
+    axis.set_xlim(0, max_budget)
+    axis.set_ylim(0, y_max)
+    axis.yaxis.set_major_locator(MaxNLocator(nbins=6, integer=metric == "cts"))
+    if cost_kind == "steps":
+        axis.set_xticks(range(0, max_budget + 1, 10))
+    else:
+        tick = max(1, max_budget // 5)
+        axis.set_xticks(range(0, max_budget + 1, tick))
+        if max_budget >= 1_000_000:
+
+            def _fmt_millions(value: float, _pos: int) -> str:
+                return f"{value / 1_000_000:.1f}M"
+
+            axis.xaxis.set_major_formatter(FuncFormatter(_fmt_millions))
+        elif max_budget >= 1000:
+
+            def _fmt_thousands(value: float, _pos: int) -> str:
+                return f"{value / 1000:.0f}k"
+
+            axis.xaxis.set_major_formatter(FuncFormatter(_fmt_thousands))
+    axis.grid(axis="both", color="#D9D9D9", linewidth=0.7, alpha=0.75)
+    axis.spines["top"].set_visible(False)
+    axis.spines["right"].set_visible(False)
+    if show_ylabel:
+        axis.set_ylabel("Raw cumulative value")
+
+
+def _save_figure(fig, output_stem: Path) -> list[Path]:
+    import matplotlib.pyplot as plt
+
+    outputs: list[Path] = []
+    for suffix, options in ((".svg", {}), (".pdf", {}), (".png", {"dpi": 300})):
+        output_path = output_stem.with_suffix(suffix)
+        fig.savefig(output_path, bbox_inches="tight", **options)
+        outputs.append(output_path)
+    plt.close(fig)
+    return outputs
+
+
 def plot_curves(
     output_stem: Path,
     rows: list[dict[str, int | float | str]],
@@ -324,10 +409,7 @@ def plot_curves(
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.ticker import MaxNLocator
 
-    budget_key = "action_budget" if cost_kind == "steps" else "token_budget"
-    xlabel = "Action-step budget" if cost_kind == "steps" else "Token budget"
     cost_label = "action-step" if cost_kind == "steps" else "token"
     plt.rcParams.update(
         {
@@ -343,40 +425,10 @@ def plot_curves(
         (axes[0], "cts", "Cumulative Task Success (CTS)"),
         (axes[1], "ccs", "Cumulative Constraint Satisfaction (CCS)"),
     ]
-    marker_every = max(1, max_budget // 10)
     for axis, metric, title in panels:
-        observed_max = max(float(row[metric]) for row in rows)
-        y_max = (
-            max(1.0, math.ceil(observed_max + 1.0))
-            if metric == "cts"
-            else max(5.0, math.ceil((observed_max * 1.1) / 5.0) * 5.0)
+        _draw_curve_axis(
+            axis, rows, max_budget, cost_kind, metric, title, model_colors
         )
-        for model in model_colors:
-            model_rows = [row for row in rows if row["model"] == model]
-            axis.plot(
-                [int(row[budget_key]) for row in model_rows],
-                [float(row[metric]) for row in model_rows],
-                label=model,
-                color=model_colors[model],
-                linewidth=2.1,
-                marker="o",
-                markersize=3.3,
-                markevery=marker_every,
-            )
-        axis.set_title(title)
-        axis.set_xlabel(xlabel)
-        axis.set_xlim(0, max_budget)
-        axis.set_ylim(0, y_max)
-        axis.yaxis.set_major_locator(MaxNLocator(nbins=6, integer=metric == "cts"))
-        if cost_kind == "steps":
-            axis.set_xticks(range(0, max_budget + 1, 10))
-        else:
-            tick = max(1, max_budget // 10)
-            axis.set_xticks(range(0, max_budget + 1, tick))
-        axis.grid(axis="both", color="#D9D9D9", linewidth=0.7, alpha=0.75)
-        axis.spines["top"].set_visible(False)
-        axis.spines["right"].set_visible(False)
-        axis.set_ylabel("Raw cumulative value")
 
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(
@@ -389,14 +441,74 @@ def plot_curves(
     )
     fig.suptitle(f"Cost–quality curves ({cost_label})", fontsize=13, y=0.985)
     fig.tight_layout(rect=(0, 0.10, 1, 0.94), w_pad=2.5)
+    return _save_figure(fig, output_stem)
 
-    outputs: list[Path] = []
-    for suffix, options in ((".svg", {}), (".pdf", {}), (".png", {"dpi": 300})):
-        output_path = output_stem.with_suffix(suffix)
-        fig.savefig(output_path, bbox_inches="tight", **options)
-        outputs.append(output_path)
-    plt.close(fig)
-    return outputs
+
+def plot_curves_combined(
+    output_stem: Path,
+    steps_rows: list[dict[str, int | float | str]],
+    steps_budget: int,
+    tokens_rows: list[dict[str, int | float | str]],
+    tokens_budget: int,
+    model_colors: dict[str, str],
+) -> list[Path]:
+    """One double-column figure: CTS/CCS for steps then tokens (1×4)."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    plt.rcParams.update(
+        {
+            "font.family": "DejaVu Sans",
+            "font.size": 22.5,
+            "axes.titlesize": 26.25,
+            "axes.labelsize": 23.75,
+            "legend.fontsize": 22.5,
+            "xtick.labelsize": 18.75,
+            "ytick.labelsize": 18.75,
+        }
+    )
+    # Wider than the original 14.5 so 2× fonts have room; still meant for
+    # double-column include. Extra height clears title / xlabels / legend.
+    fig, axes = plt.subplots(1, 4, figsize=(23.1, 6.2), sharey=False)
+    panels = [
+        (axes[0], steps_rows, steps_budget, "steps", "cts", "CTS (steps)"),
+        (axes[1], steps_rows, steps_budget, "steps", "ccs", "CCS (steps)"),
+        (axes[2], tokens_rows, tokens_budget, "tokens", "cts", "CTS (tokens)"),
+        (axes[3], tokens_rows, tokens_budget, "tokens", "ccs", "CCS (tokens)"),
+    ]
+    for idx, (axis, rows, budget, cost_kind, metric, title) in enumerate(panels):
+        _draw_curve_axis(
+            axis,
+            rows,
+            budget,
+            cost_kind,
+            metric,
+            title,
+            model_colors,
+            show_ylabel=idx == 0,
+        )
+        if cost_kind == "steps":
+            axis.set_xticks(range(0, budget + 1, 25))
+        else:
+            ticks = [0, budget // 2, budget]
+            axis.set_xticks(ticks)
+
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.subplots_adjust(left=0.07, right=0.995, top=0.90, bottom=0.24, wspace=0.15)
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        ncol=len(model_colors),
+        frameon=False,
+        bbox_to_anchor=(0.5, 0.10),
+        handlelength=2.2,
+        columnspacing=1.8,
+        borderaxespad=0.0,
+    )
+    return _save_figure(fig, output_stem)
 
 
 def main() -> None:

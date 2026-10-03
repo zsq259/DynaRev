@@ -47,10 +47,12 @@ def plot_thresholds(
     plt.rcParams.update(
         {
             "font.family": "DejaVu Sans",
-            "font.size": 10,
-            "axes.titlesize": 12,
-            "axes.labelsize": 11,
-            "legend.fontsize": 9,
+            "font.size": 15,
+            "axes.titlesize": 18,
+            "axes.labelsize": 16,
+            "legend.fontsize": 12,
+            "xtick.labelsize": 13,
+            "ytick.labelsize": 13,
         }
     )
     fig, axis = plt.subplots(figsize=(5.2, 4.25))
@@ -71,12 +73,23 @@ def plot_thresholds(
     axis.set_yticks([i / 5 for i in range(6)])
     axis.set_xlabel("Score threshold")
     axis.set_ylabel("Proportion of tasks")
-    axis.set_title("Tasks with score at or above threshold")
     axis.grid(axis="both", color="#D9D9D9", linewidth=0.7, alpha=0.75)
     axis.spines["top"].set_visible(False)
     axis.spines["right"].set_visible(False)
-    axis.legend(frameon=False, loc="upper right")
-    fig.tight_layout()
+    handles, labels = axis.get_legend_handles_labels()
+    fig.subplots_adjust(left=0.14, right=0.98, top=0.97, bottom=0.28)
+    fig.legend(
+        handles,
+        labels,
+        frameon=False,
+        loc="upper center",
+        ncol=2,
+        bbox_to_anchor=(0.55, 0.12),
+        handlelength=2.0,
+        columnspacing=1.2,
+        borderaxespad=0.0,
+    )
+    # Avoid tight_layout resetting the legend room below the axes.
 
     outputs: list[Path] = []
     for suffix, options in ((".svg", {}), (".pdf", {}), (".png", {"dpi": 300})):
