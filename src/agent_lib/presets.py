@@ -2,8 +2,10 @@
 
 Each preset is a validated combination of the three policy dimensions:
 - history_policy: "full" | "kill"
-  (full keeps all actions/thoughts/revisions and the last K page snapshots)
+  (full keeps dialogue across injections; kill pulse-clears the log only when
+  a revision is injected, then accumulates again like a normal task)
 - revision_policy: "append" | "reset"
+  (browser only: stay put vs reopen at start_url; does not touch dialogue)
 - instruction_policy: "structured" | "rewrite"
 
 Use --mode <key> to select a preset, or use the three individual flags directly.
@@ -27,42 +29,42 @@ class AgentPreset:
 PRESETS: Dict[str, AgentPreset] = {
     "baseline": AgentPreset(
         key="baseline",
-        description="[保留+保留+多条] 完整版：全部动作/修订 + 最近 K 页 + 浏览器不重置 + 多条指令逐条呈现",
+        description="[保留对话+不重置浏览器+多条] 完整版",
         history_policy="full",
         revision_policy="append",
         instruction_policy="structured",
     ),
     "merge": AgentPreset(
         key="merge",
-        description="[保留+保留+合并] 全部动作/修订 + 最近 K 页 + 浏览器不重置 + 指令 LLM 合并为一条",
+        description="[保留对话+不重置浏览器+合并] 注入后指令 LLM 合并为一条",
         history_policy="full",
         revision_policy="append",
         instruction_policy="rewrite",
     ),
     "kill_structured": AgentPreset(
         key="kill_structured",
-        description="[保留+丢弃+多条] 丢弃对话历史 + 浏览器不重置 + 多条指令逐条呈现",
+        description="[注入时清对话+不重置浏览器+多条] 清完后局内照常攒历史",
         history_policy="kill",
         revision_policy="append",
         instruction_policy="structured",
     ),
     "kill_rewrite": AgentPreset(
         key="kill_rewrite",
-        description="[保留+丢弃+合并] Kill History：丢弃对话历史 + 浏览器不重置 + 指令合并",
+        description="[注入时清对话+不重置浏览器+合并] 清完后局内照常攒历史",
         history_policy="kill",
         revision_policy="append",
         instruction_policy="rewrite",
     ),
     "reset_structured": AgentPreset(
         key="reset_structured",
-        description="[重置+丢弃+多条] 浏览器重置 + 丢弃对话历史 + 多条指令逐条呈现",
+        description="[注入时清对话+浏览器回首页+多条] 干净重开（多条指令）",
         history_policy="kill",
         revision_policy="reset",
         instruction_policy="structured",
     ),
     "reset_rewrite": AgentPreset(
         key="reset_rewrite",
-        description="[重置+丢弃+合并] 指令重写版：浏览器重置 + 丢弃对话历史 + 指令合并",
+        description="[注入时清对话+浏览器回首页+合并] 干净重开（合并指令）",
         history_policy="kill",
         revision_policy="reset",
         instruction_policy="rewrite",

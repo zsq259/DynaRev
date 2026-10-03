@@ -1,8 +1,11 @@
 """Conversation history manager for agent execution.
 
 Separates the authoritative conversation log from the LLM context window.
-The full log records everything; build_llm_context() selects what the policy
-model actually sees based on history_policy.
+
+history_policy:
+- full: keep dialogue across revision injections
+- kill: pulse-clear the log when a revision is injected; between injections
+  the policy model still sees accumulated turns (same context shaping as full)
 """
 
 from __future__ import annotations
@@ -116,17 +119,15 @@ class ConversationHistory:
     ) -> List[Dict[str, str]]:
         """Return the message list to send to the policy model.
 
-        In 'full' mode: system + all recorded turns + current user message,
-        with page snapshots older than the last ``observation_keep`` replaced
-        by a placeholder (actions, thoughts, and revision injections stay).
-        In 'kill' mode: system + current user message only.
+        Both policies use the same context shape: system + recorded turns +
+        current user message, with page snapshots older than the last
+        ``observation_keep`` replaced by a placeholder (actions, thoughts,
+        and revision injections stay). ``kill`` only differs by pulse-clearing
+        the log at revision injection (see ``clear_at_revision``).
         """
         ctx: List[Dict[str, str]] = [
             {"role": "system", "content": self._system_content}
         ]
-        if self._policy == "kill":
-            ctx.append({"role": "user", "content": current_user_msg})
-            return ctx
         ctx.extend(self._full_log)
         ctx.append({"role": "user", "content": current_user_msg})
         return elide_old_observations(ctx, self._observation_keep)
@@ -136,8 +137,15 @@ class ConversationHistory:
     # ------------------------------------------------------------------
 
     def reset(self) -> None:
-        """Clear all recorded messages (called on browser reset)."""
+        """Clear all recorded messages."""
         self._full_log.clear()
+
+    def clear_at_revision(self) -> bool:
+        """Pulse-clear dialogue when history_policy=kill. Returns whether cleared."""
+        if self._policy != "kill":
+            return False
+        self.reset()
+        return True
 
     # ------------------------------------------------------------------
     # Accessors

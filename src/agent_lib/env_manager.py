@@ -10,7 +10,6 @@ from typing import Any, Dict, Tuple
 
 from browsergym.core.env import BrowserEnv
 
-from .history import ConversationHistory
 from .task_env import GenericBrowserTask
 from ..models import TaskInstance
 from ..utils.browser import (
@@ -77,21 +76,21 @@ class EnvironmentManager:
     def handle_revision(
         self,
         revision_policy: str,
-        history: ConversationHistory,
     ) -> Tuple[BrowserEnv, Dict[str, Any], bool]:
         """Handle browser state after a revision fires.
 
-        If revision_policy == 'reset': close old env, create fresh one,
-        clear conversation history. Returns (env, obs, did_reset=True).
+        If revision_policy == 'reset': close old env and create a fresh one at
+        start_url. Returns (env, obs, did_reset=True).
         Otherwise returns (current_env, current_obs, did_reset=False).
+
+        Dialogue history is intentionally not touched here — that belongs to
+        history_policy (pulse-clear on inject when kill).
         """
         if revision_policy != "reset":
             assert self._env is not None
             return self._env, {}, False
 
-        # Reset: close old env, create new one
         self.close()
-        history.reset()
         env, obs = self.start()
         self._env = env
         return env, obs, True

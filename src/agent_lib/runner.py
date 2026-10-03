@@ -3,8 +3,8 @@
 Refactored from engine.py.  The four orthogonal dimensions are each managed
 by a dedicated handler, and the run() loop calls them in a clean pipeline:
 
-  ConversationHistory  — what the LLM sees (full vs. kill)
-  EnvironmentManager   — browser lifecycle & reset-on-revision
+  ConversationHistory  — dialogue log (full keep vs kill pulse-clear on inject)
+  EnvironmentManager   — browser lifecycle & reset-on-revision (browser only)
   InstructionComposer  — how active instructions are presented
   ReasoningStrategy    — action generation pattern (direct / react / reflection)
 """
@@ -190,7 +190,7 @@ class AgentRunner:
         env, obs = self._env_manager.start()
         self._report_phase("agent_processing", 0)
 
-        max_steps = args.max_steps or int(task.runtime.get("max_steps", 30))
+        max_steps = int(args.max_steps)
         history_policy = getattr(args, "history_policy", "full")
         revision_policy = getattr(args, "revision_policy", "append")
 
@@ -215,12 +215,15 @@ class AgentRunner:
                 # ---- Stage 2: Milestones ---------------------------------------
                 injected_now, trigger_checks = self._check_milestones(axtree, step)
 
-                # ---- Stage 3: Revision Reset -----------------------------------
+                # ---- Stage 3: Revision side effects (history ⊥ browser) --------
                 if injected_now:
+                    self._pulse_clear_history_if_kill(
+                        injected_now, post_done=False
+                    )
                     if revision_policy == "reset":
                         self._report_phase("browser_revision_reset", step)
                     next_env, next_obs, did_reset = self._env_manager.handle_revision(
-                        revision_policy, self._history
+                        revision_policy
                     )
                     env = next_env
                     obs = observation_after_revision(obs, next_obs, did_reset)
@@ -273,15 +276,17 @@ class AgentRunner:
 
                 # ---- Stage 10: Premature Done ---------------------------------
                 if action.startswith("send_msg_to_user") and len(self._fired_revision_ids) < len(task.revisions):
-                    self._handle_premature_done(
+                    injected_post = self._handle_premature_done(
                         step, url, raw, trigger_checks, instruction_snapshot,
                         token_usage=self._token_meter.totals(step_token_start),
                     )
+                    if injected_post:
+                        self._pulse_clear_history_if_kill(
+                            injected_post, post_done=True
+                        )
                     if revision_policy == "reset":
                         self._report_phase("browser_post_done_reset", step)
-                        env, obs, _ = self._env_manager.handle_revision(
-                            "reset", self._history
-                        )
+                        env, obs, _ = self._env_manager.handle_revision("reset")
                         self._report_phase("agent_processing", step)
                         logger.info(
                             "POST_DONE_RESET | task=%s | step=%d | revisions=%s",
@@ -387,7 +392,7 @@ class AgentRunner:
             step=step,
             fired_step=self._fired_step,
             client=self._trigger_client,
-            model=getattr(self._args, "trigger_model", "deepseek-v4-flash"),
+            model=self._args.trigger_model,
         )
         trigger_checks.append({
             "milestone_id": milestone.milestone_id,
@@ -464,6 +469,31 @@ class AgentRunner:
         self._history.record_correction_round(correction, raw_retry)
         return action_retry, raw_retry, thought_retry
 
+    def _pulse_clear_history_if_kill(
+        self, injected_revision_ids: List[str], *, post_done: bool
+    ) -> None:
+        """If history_policy=kill, clear dialogue once at injection and re-seed.
+
+        ``_check_milestones`` / premature-done may have already recorded the
+        injection turn; pulse-clear drops pre-revision turns, then re-records
+        the injection so the new episode segment still sees the UPDATE.
+        """
+        if not self._history.clear_at_revision():
+            return
+        for rev_id in injected_revision_ids:
+            revision = self._revision_map.get(rev_id)
+            if revision is None:
+                continue
+            self._history.record_user_message(
+                _build_injection_message(revision, post_done=post_done)
+            )
+        self._logger.info(
+            "HISTORY_PULSE_CLEAR | task=%s | revisions=%s | post_done=%s",
+            self._task.instance_id,
+            ",".join(injected_revision_ids),
+            post_done,
+        )
+
     def _handle_premature_done(
         self,
         step: int,
@@ -472,7 +502,7 @@ class AgentRunner:
         trigger_checks: List[Dict[str, Any]],
         instruction_snapshot: InstructionSnapshot,
         token_usage: Optional[Dict[str, Any]] = None,
-    ) -> None:
+    ) -> List[str]:
         # Record the premature done step
         ev = StepEvent(
             step=step,
@@ -494,6 +524,7 @@ class AgentRunner:
             len(self._fired_revision_ids), len(self._task.revisions),
         )
 
+        injected_post: List[str] = []
         # Force-fire next unfired milestone
         for milestone in self._task.milestones:
             if milestone.milestone_id not in self._fired_milestones:
@@ -502,6 +533,7 @@ class AgentRunner:
                 revision = self._revision_map.get(milestone.inject_revision_id)
                 if revision and revision.revision_id not in self._fired_revision_ids:
                     self._fired_revision_ids.append(revision.revision_id)
+                    injected_post.append(revision.revision_id)
                     self._history.record_user_message(
                         _build_injection_message(revision, post_done=True)
                     )
@@ -511,6 +543,7 @@ class AgentRunner:
                         milestone.milestone_id, revision.revision_id,
                     )
                 break
+        return injected_post
 
     def _save_axtree(self, step: int, axtree: str) -> None:
         path = self._task_dir / f"step_{step:03d}.axtree"
