@@ -209,7 +209,7 @@ _COMBINE: Dict[str, str] = {
 # Lock states that exclude a constraint from task-level numerator AND
 # denominator. Run-level diagnostic counts still surface them so the
 # rates remain visible.
-_SKIP_LOCK_STATES = {"branch_skipped", "conditional_unaddressed"}
+_SKIP_LOCK_STATES = {"branch_skipped"}
 
 
 @dataclass
@@ -268,11 +268,11 @@ class TaskEvaluator:
 
         # Phase A — branch resolution (only if task has a conditional
         # override). Marks default- or alternative-branch constraints as
-        # skipped so the per-constraint loop doesn't run B/C/D on them.
+        # skipped, or locks an unaddressed condition as failure, before B/C/D.
         branch_resolution = self._resolve_branch_if_any(states)
 
         for s in states:
-            if s.status == "skipped":
+            if s.status == "skipped" or s.lock_state == "conditional_unaddressed":
                 continue
             if not s.fired:
                 self._lock_unfired(s)
@@ -333,9 +333,9 @@ class TaskEvaluator:
           returns one of {"true", "false", "not_addressed"}:
             * "true"           → alternative active, default skipped
             * "false"          → default active, alternative skipped
-            * "not_addressed"  → both branches skipped with
-              ``conditional_unaddressed`` lock; not counted in task
-              denominator, surfaced as a run-level diagnostic.
+            * "not_addressed"  → default group fails with
+              ``conditional_unaddressed``; alternative is excluded to avoid
+              counting both mutually exclusive groups.
 
         Returns a dict embedded into the evaluation output describing
         the resolution (condition_state, active_branch, skipped ids,
@@ -427,15 +427,18 @@ class TaskEvaluator:
                 "reason": reason,
                 "confidence": confidence,
             }
-        for s in default_states + alt_states:
-            self._lock_skipped(s, "conditional_unaddressed")
+        for s in default_states:
+            self._lock_fail(s, "conditional_unaddressed", "conditional_unaddressed")
+        for s in alt_states:
+            self._lock_skipped(s, "branch_skipped")
         return {
             "condition_text": bp.condition_text,
             "condition_state": "not_addressed",
             "active_branch": "unaddressed",
             "active_constraint_ids": [],
             "active_constraint_id": None,
-            "skipped_constraint_ids": default_ids + alternative_ids,
+            "skipped_constraint_ids": alternative_ids,
+            "failed_constraint_ids": default_ids,
             "reason": reason,
             "confidence": confidence,
         }
@@ -758,7 +761,7 @@ class TaskEvaluator:
         branch_resolution: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         results = [self._render_constraint(s) for s in states]
-        # Skipped constraints (branch_skipped / conditional_unaddressed)
+        # Only inactive-branch constraints (branch_skipped)
         # are excluded from BOTH numerator and denominator. They remain
         # visible in constraint_results and diagnostic_counts.
         effective = [
@@ -808,17 +811,18 @@ class TaskEvaluator:
                 else ""
             )
             confidence = 1.0
+        elif s.lock_state == "conditional_unaddressed":
+            reason = (
+                "Agent did not provide a concrete condition observation in "
+                "done_message; conditional handling failed. The default group "
+                "counts as failed; the alternative group is not counted again."
+            )
+            confidence = 1.0
         elif s.status == "skipped":
-            if s.lock_state == "conditional_unaddressed":
-                reason = (
-                    "Agent did not address the conditional clause in "
-                    "done_message; both branches skipped."
-                )
-            else:
-                reason = (
-                    "Branch dispatch — this constraint is on the inactive "
-                    "branch for this run."
-                )
+            reason = (
+                "Branch dispatch — this constraint is on the inactive branch, "
+                "or the alternative excluded when condition handling is unresolved."
+            )
             confidence = 1.0
         elif not s.fired:
             reason = "Revision not triggered during execution"

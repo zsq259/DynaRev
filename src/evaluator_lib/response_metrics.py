@@ -94,11 +94,10 @@ def compute_demand_side_metrics(
     label_dist_per_round: Dict[str, Dict[str, int]] = {}
     for rev_id in rounds:
         bound = by_rev.get(rev_id, [])
-        # branch_skipped / conditional_unaddressed remove themselves from
-        # both numerator and denominator — they don't apply to this run.
+        # Only inactive branches are excluded; unaddressed conditions count as failures.
         effective = [
             cr for cr in bound
-            if cr.get("combine_label") not in ("branch_skipped", "conditional_unaddressed")
+            if cr.get("combine_label") != "branch_skipped"
         ]
         confirmed = sum(1 for cr in effective if cr.get("combine_label") == "confirmed")
         total = len(effective)
@@ -123,7 +122,7 @@ def compute_demand_side_metrics(
         bound = by_rev.get(rev_id, [])
         effective = [
             cr for cr in bound
-            if cr.get("combine_label") not in ("branch_skipped", "conditional_unaddressed")
+            if cr.get("combine_label") != "branch_skipped"
         ]
         if any(cr.get("combine_label") != "confirmed" for cr in effective):
             mffr_ordinal = ord_idx
@@ -173,7 +172,7 @@ def compute_csd_per_round(
         bound = by_rev.get(rev_id, [])
         effective = [
             cr for cr in bound
-            if cr.get("combine_label") not in ("branch_skipped", "conditional_unaddressed")
+            if cr.get("combine_label") != "branch_skipped"
         ]
         confirmed = sum(1 for cr in effective if cr.get("combine_label") == "confirmed")
         total = len(effective)
