@@ -15,7 +15,6 @@ from src.utils.client import get_client
 from src.utils.site_health import SiteHealthStore, normalize_url
 
 
-DEFAULT_MODEL = "deepseek-v4-flash"
 RESUME_RETRYABLE_STATUSES = {"task_exception", "environment_error"}
 
 
@@ -100,7 +99,10 @@ def render_progress_bar(done: int, total: int, width: int = 24) -> str:
 
 
 def resolve_model_roles(args: argparse.Namespace) -> None:
+    """Fill policy/trigger from --model shorthand; require an explicit policy model."""
     args.policy_model = args.policy_model or args.model
+    if not args.policy_model:
+        raise SystemExit("must pass --policy-model (or --model)")
     args.trigger_model = args.trigger_model or args.policy_model
 
 
@@ -383,48 +385,77 @@ def task_health_urls(task: Any) -> List[str]:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Dyna unified benchmark runner")
     p.add_argument("--dataset-type", choices=["dyna_jsonl", "om2w_hf"], default="dyna_jsonl")
-    p.add_argument("--dataset-path", default="dyna_tasks_v1.jsonl")
+    p.add_argument(
+        "--dataset-path",
+        default=None,
+        help="JSONL path; required when --dataset-type=dyna_jsonl",
+    )
     p.add_argument("--hf-dataset", default="osunlp/Online-Mind2Web")
     p.add_argument("--hf-split", default="test")
     p.add_argument("--instance-id", default=None, help="comma-separated instance ids")
     p.add_argument("--scene", default=None)
-    p.add_argument("--limit", type=int, default=1)
+    p.add_argument(
+        "--limit",
+        type=int,
+        required=True,
+        help="max tasks after filters; 0 keeps all",
+    )
     p.add_argument("--offset", type=int, default=0)
     p.add_argument("--shuffle", action="store_true")
     p.add_argument("--seed", type=int, default=42)
 
-    p.add_argument("--model", default=DEFAULT_MODEL, help="shorthand default for policy/trigger/evaluator models")
-    p.add_argument("--policy-model", default=None)
-    p.add_argument("--trigger-model", default=None)
+    p.add_argument(
+        "--model",
+        default=None,
+        help="optional shorthand: fills --policy-model when that flag is omitted",
+    )
+    p.add_argument("--policy-model", default=None, help="required unless --model is set")
+    p.add_argument(
+        "--trigger-model",
+        default=None,
+        help="milestone trigger model; defaults to --policy-model when omitted",
+    )
     p.add_argument("--temperature", type=float, default=0.0)
     p.add_argument("--max-tokens", type=int, default=16384)
-    p.add_argument("--max-steps", type=int, default=None)
+    p.add_argument(
+        "--max-steps",
+        type=int,
+        required=True,
+        help="step cap; overrides task runtime.max_steps",
+    )
     p.add_argument(
         "--stuck-steps",
         type=int,
         default=0,
         help="deprecated compatibility option; repeated actions no longer stop a task",
     )
-    p.add_argument("--headless", action="store_true")
+    p.add_argument(
+        "--headless",
+        action=argparse.BooleanOptionalAction,
+        required=True,
+        help="required: --headless or --no-headless",
+    )
     p.add_argument(
         "--history-policy",
         choices=["full", "kill"],
         default="full",
-        help="policy context: full action/thought history or current turn only",
+        help="dialogue at revision inject: full keeps prior turns; "
+        "kill pulse-clears the log once then accumulates again",
     )
     p.add_argument(
         "--history-obs-keep",
         type=int,
         default=5,
         metavar="K",
-        help="when history-policy=full, keep the last K page snapshots; "
+        help="keep the last K page snapshots in policy context; "
         "older PAGE CONTENT is omitted (actions and revisions stay)",
     )
     p.add_argument(
         "--revision-policy",
         choices=["append", "reset"],
         default="append",
-        help="what to do after a revision fires: append in-place or reset browser to start_url",
+        help="browser only after a revision fires: stay on page or reopen start_url "
+        "(does not clear dialogue; use history-policy=kill for that)",
     )
     p.add_argument(
         "--instruction-policy",
@@ -447,7 +478,12 @@ def parse_args() -> argparse.Namespace:
 
     p.add_argument("--run-name", default=None)
     p.add_argument("--log-dir", default="logs/runs")
-    p.add_argument("--viewport-only", action="store_true", help="filter AXTree to viewport-visible elements only")
+    p.add_argument(
+        "--viewport-only",
+        action=argparse.BooleanOptionalAction,
+        required=True,
+        help="required: --viewport-only or --no-viewport-only",
+    )
     p.add_argument(
         "--browser-operation-timeout",
         type=float,
@@ -464,7 +500,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--exec-workers",
         type=int,
-        default=3,
+        required=True,
         help="max isolated task processes in flight; 1 keeps the serial loop",
     )
     p.add_argument(
@@ -486,6 +522,8 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--dry-run", action="store_true", help="validate loading and selection without executing browser")
     args = p.parse_args()
+    if args.dataset_type == "dyna_jsonl" and not args.dataset_path:
+        raise SystemExit("--dataset-path is required when --dataset-type=dyna_jsonl")
     if args.history_obs_keep < 1:
         raise SystemExit("--history-obs-keep must be >= 1")
     return args
@@ -493,7 +531,7 @@ def parse_args() -> argparse.Namespace:
 
 def validate_exec_workers(args: argparse.Namespace, tasks: List[Any]) -> int:
     """Reject combinations that would share a process or dual-write a task dir."""
-    workers = int(getattr(args, "exec_workers", 3) or 1)
+    workers = int(args.exec_workers)
     if workers < 1:
         raise SystemExit("--exec-workers must be >= 1")
     if workers > 1 and getattr(args, "no_task_isolation", False):
@@ -528,7 +566,7 @@ def main() -> None:
     if args.dataset_type == "dyna_jsonl":
         tasks = load_dyna_jsonl(args.dataset_path)
     else:
-        tasks = load_om2w_hf(args.hf_dataset, args.hf_split, args.max_steps or 30)
+        tasks = load_om2w_hf(args.hf_dataset, args.hf_split, args.max_steps)
 
     tasks = select_tasks(tasks, args)
     if not tasks:
@@ -577,7 +615,7 @@ def main() -> None:
     logger.info(
         "RUN_START | tasks=%d | exec_workers=%s | policy_model=%s | trigger_model=%s | dataset_type=%s",
         len(tasks),
-        getattr(args, "exec_workers", 3),
+        args.exec_workers,
         args.policy_model,
         args.trigger_model,
         args.dataset_type,

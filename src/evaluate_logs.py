@@ -46,7 +46,8 @@ def evaluate_run_dir(
     run_dir: Path,
     dataset_path: Optional[str] = None,
     task_ids: Optional[Set[str]] = None,
-    evaluator_model: str = "deepseek-v4-flash",
+    *,
+    evaluator_model: str,
     force: bool = False,
     execution_date: str = "",
     eval_retries: int = 2,
@@ -58,13 +59,15 @@ def evaluate_run_dir(
         run_dir: Path to run directory containing task logs
         dataset_path: Path to task dataset file (needed to load full TaskInstance)
         task_ids: Set of specific task IDs to evaluate, or None for all
-        evaluator_model: LLM model to use for constraint judgment
+        evaluator_model: LLM model to use for constraint judgment (required)
         force: If True, re-evaluate even if evaluation exists
         execution_date: Date the task was executed (YYYY-MM-DD)
         eval_retries: extra full-task attempts after an EvaluatorError
             (discard the failed attempt; do not continue from it)
         eval_workers: max tasks to score at once; 1 keeps the serial loop
     """
+    if not evaluator_model:
+        raise ValueError("evaluator_model is required")
     run_dir = Path(run_dir)
 
     if not run_dir.exists():
@@ -454,8 +457,8 @@ def main():
     parser.add_argument(
         "--evaluator-model",
         type=str,
-        default="deepseek-v4-flash",
-        help="LLM model for constraint judgment (default: deepseek-v4-flash)",
+        required=True,
+        help="LLM model for constraint judgment (no default; must be explicit)",
     )
     parser.add_argument(
         "--force",
@@ -471,7 +474,7 @@ def main():
     parser.add_argument(
         "--eval-workers",
         type=int,
-        default=1,
+        required=True,
         help="max tasks to score at once; 1 keeps the serial loop",
     )
     parser.add_argument(

@@ -130,11 +130,14 @@ def evaluate_run_dir(
     run_dir: Path,
     dataset_path: str,
     task_ids: Optional[Set[str]] = None,
-    judge_model: str = "deepseek-v4-flash",
+    *,
+    judge_model: Optional[str] = None,
     use_judge: bool = True,
     force: bool = False,
     execution_date: str = "",
 ) -> int:
+    if use_judge and not judge_model:
+        raise ValueError("judge_model is required when use_judge=True")
     run_dir = Path(run_dir)
     if not run_dir.exists():
         print(f"Error: Run directory not found: {run_dir}")
@@ -374,7 +377,12 @@ def main():
         "--task-ids", type=str, default=None,
         help="Comma-separated task ids; default = all tasks with eval JSON.",
     )
-    parser.add_argument("--judge-model", type=str, default="deepseek-v4-flash")
+    parser.add_argument(
+        "--judge-model",
+        type=str,
+        default=None,
+        help="required unless --no-judge",
+    )
     parser.add_argument(
         "--no-judge", action="store_true",
         help="Skip LLM-backed WRA + adaptation; only emit deterministic metrics.",
@@ -382,6 +390,9 @@ def main():
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--execution-date", type=str, default=None)
     args = parser.parse_args()
+
+    if not args.no_judge and not args.judge_model:
+        raise SystemExit("--judge-model is required unless --no-judge")
 
     task_ids = None
     if args.task_ids:

@@ -13,11 +13,15 @@ from openai import OpenAI
 _PROVIDER_ROUTES = (
     ("Qwen/Qwen3.5", "QWEN35_BASE_URL", "QWEN35_API_KEY", False),
     ("qwen/qwen3.5", "QWEN35_BASE_URL", "QWEN35_API_KEY", False),
+    # DashScope-compatible Qwen3.8 (1.sh: QWEN_38_*); keep before generic qwen/.
+    ("qwen3.8",      "QWEN_38_BASE_URL", "QWEN_38_API_KEY", True),
+    ("Qwen3.8",      "QWEN_38_BASE_URL", "QWEN_38_API_KEY", True),
     ("deepseek",     "DEEPSEEK_BASE_URL", "DEEPSEEK_API_KEY", True),
     ("gpt",          "OPENAI_BASE_URL",   "OPENAI_API_KEY", True),
     ("o1",           "OPENAI_BASE_URL",   "OPENAI_API_KEY", True),
     ("o3",           "OPENAI_BASE_URL",   "OPENAI_API_KEY", True),
     ("o4",           "OPENAI_BASE_URL",   "OPENAI_API_KEY", True),
+    ("gemini",       "GEMINI_BASE_URL",   "GEMINI_API_KEY", True),
     ("qwen",         "QWEN_BASE_URL",     "QWEN_API_KEY", True),
     ("Qwen",         "QWEN_BASE_URL",     "QWEN_API_KEY", True),
     ("claude",       "OPENAI_BASE_URL",   "OPENAI_API_KEY", True),
