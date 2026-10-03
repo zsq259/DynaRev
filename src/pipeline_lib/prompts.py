@@ -873,6 +873,11 @@ concrete number, and accept `change_to` only if the condition holds. \
 `type="conditional_override"`. Also set `condition_text` on that turn: one \
 predicate sentence using the same number and comparison.
 
+Use one task-level condition to choose between `keep` and `change_to` for the whole task \
+when multiple entities are involved, explicitly state whether all or any must meet the \
+condition, and apply the chosen preference uniformly rather than switching separately \
+for each entity.
+
 Candidate `pair_values` are a reference, not gold and not a direction label. \
 Write `keep` and `change_to` in the task's own wording.
 
