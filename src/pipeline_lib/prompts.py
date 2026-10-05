@@ -231,10 +231,8 @@ think of them after seeing intermediate results
 - A constraint should be introduced later if the user would only think of it after seeing \
 some results or making progress
 - Do NOT repeat or restate constraints that are already clearly expressed in I0
-- Every instruction after I0 must add new information or a new restriction that was not \
-already stated; paraphrasing existing constraints is not allowed
-- If a constraint is already fully specified in I0, it must not appear again in later turns \
-unless the later turn adds genuinely new specificity beyond I0
+- Each turn after I0 must introduce one or more remaining Step1 constraints not already covered by earlier turns. Do not add requirements beyond the provided constraints, including extra filters, optimization goals, or output details.
+- If I0 already covers all constraints, do not invent a follow-up; return only I0.
 - Avoid weak increments such as tone strengthening, exclusion of obvious negatives, \
 or restating the same constraint with different wording — these do not count as new revisions
 - Group constraints that a user would naturally say together in the same turn. \
@@ -630,6 +628,7 @@ introduces or addresses it)
 - Flag any constraint not clearly covered by any instruction
 - Flag any constraint that seems poorly matched to its assigned instruction
 - Flag if the overall coverage is incomplete (constraints missing from the instruction sequence)
+- Also check that every requirement in the instruction sequence is covered by a scoring constraint. Flag any extra requirement without coverage.
 - If override context is provided, allow the target constraint to be satisfied via an explicit target->replacement override instruction.
 
 Constraints:
@@ -973,6 +972,7 @@ write a multi-turn instruction sequence with milestones.
 **I0:** already provided — do not modify it.
 
 **Later turns:**
+- Apart from the selected override and its switching condition, use only the provided constraints. Additive turns may introduce remaining constraints, but must not add new requirements. Do not invent extra turns when no constraints remain.
 - Sound like a user refining the request after seeing progress.
 - Group information naturally; do not split one idea across turns.
 - Keep composite AND/OR constraints intact.
