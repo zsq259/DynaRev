@@ -47,8 +47,15 @@ _SYSTEM_PROMPT = (
     "satisfied (logical AND). Each sub-claim must be independently "
     "checkable.\n\n"
     "INPUTS you will receive:\n"
+    "- The complete instruction timeline: I0 and revisions in order\n"
     "- A constraint description (one atomic requirement)\n"
     "- The agent's full final answer (done_message)\n\n"
+    "Interpret the current constraint in the context of the instruction timeline. "
+    "Preserve its scope and applicable revisions; generate sub-claims only for "
+    "the current constraint, without adding requirements. Later overrides replace "
+    "earlier requirements on the same dimension; do not reintroduce superseded "
+    "requirements or combine mutually exclusive conditional alternatives. "
+    "Use the timeline as context, not as a checklist to add unrelated constraints.\n\n"
     "Each sub-claim has a `type`:\n\n"
     "- type='simple': resolvable by reading done_message text and applying "
     "logic. No page evidence needed. Examples of simple predicates:\n"
@@ -304,6 +311,7 @@ def decompose(
     client: OpenAI,
     model: str,
     execution_date: str = "",
+    instruction_timeline: str = "",
 ) -> List[SubClaim]:
     """Decompose a constraint into binary sub-claims.
 
@@ -311,8 +319,13 @@ def decompose(
     decomposition. Evaluator failures must not be scored as agent failures.
     """
     date_line = f"\nTask was executed on: {execution_date}" if execution_date else ""
+    timeline_context = (
+        f"Complete instruction timeline:\n{instruction_timeline}\n\n"
+        if instruction_timeline else ""
+    )
     user = (
-        f"Constraint:\n{constraint_description}{date_line}\n\n"
+        timeline_context
+        + f"Constraint:\n{constraint_description}{date_line}\n\n"
         f"done_message:\n{done_message}\n\n"
         "Decompose the constraint into binary sub-claims."
     )

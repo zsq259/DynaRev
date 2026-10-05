@@ -453,6 +453,14 @@ class TaskEvaluator:
         injection_map: Dict[str, int],
         last_step: int,
     ) -> None:
+        # Preserve the full ordered task context when interpreting this constraint.
+        instruction_timeline = "\n".join(
+            [f"i0 (initial): {self.task.i0}"]
+            + [
+                f"{revision.revision_id} ({revision.type}): {revision.content}"
+                for revision in self.task.revisions
+            ]
+        )
         # Phase B: decompose
         s.subclaims = decompose(
             constraint_description=s.description,
@@ -460,6 +468,7 @@ class TaskEvaluator:
             client=self.client,
             model=self.model,
             execution_date=self.execution_date,
+            instruction_timeline=instruction_timeline,
         )
 
         if not s.subclaims:
