@@ -243,6 +243,7 @@ def verify_claim_on_frame(
     client: OpenAI,
     model: str = "deepseek-v4-flash",
     execution_date: str = "",
+    page_url: str = "",
 ) -> Dict[str, Any]:
     """Verify a single (subject, agent_assertion) page sub-claim on a frame.
 
@@ -263,8 +264,9 @@ def verify_claim_on_frame(
     system_msg = (
         "You verify a page sub-claim against a GUI page snapshot (AXTree), "
         "in the context of a task constraint. Your judgment must come from "
-        "the AXTree only — do NOT use world knowledge or background facts "
-        "to fill gaps.\n\n"
+        "the AXTree and the supplied page URL — do NOT use world knowledge or background facts "
+        "to fill gaps. The URL may help identify the page; it does not by itself "
+        "prove that an activity or property is present.\n\n"
         "A sub-claim has two parts:\n"
         "  subject — the item the page should be about (book, product, "
         "person, URL fragment, domain, etc.)\n"
@@ -291,7 +293,7 @@ def verify_claim_on_frame(
         "world. Null when agent_assertion itself is null.\n\n"
         "3. evidence_summary: One or two short sentences describing what "
         "this page shows about the subject relevant to the constraint. "
-        "Quote or paraphrase short snippets directly from the AXTree. "
+        "Quote or paraphrase short snippets directly from the AXTree or page URL. "
         "If the page is not about the subject, summarize what the page "
         "actually is. This summary is used in diagnostic reasons — it "
         "should be specific enough that a reader can reconstruct why you "
@@ -299,7 +301,7 @@ def verify_claim_on_frame(
         "STRICTNESS:\n"
         "- Apply fuzzy matching for minor variations (case, spacing, "
         "hyphenation, year format, common abbreviations) — but final "
-        "decisions must rely on explicit AXTree evidence.\n"
+        "decisions must rely on explicit AXTree evidence and page URL context.\n"
         "- If the page is entirely irrelevant or inaccessible (error page, "
         "blank, blocked), conclude is_subject_page=false directly.\n"
         "- For null agent_assertion: is_subject_page=true is sufficient — "
@@ -354,8 +356,9 @@ def verify_claim_on_frame(
         f"Constraint:\n{constraint_description}\n\n"
         f"Sub-claim to verify:\n  subject: {subject}\n  {assertion_line}"
         f"{date_line}\n"
+        f"Page URL (full):\n{page_url}\n\n"
         f"Page state (AXTree):\n{_truncate_axtree(axtree)}\n\n"
-        "Verify the sub-claim against the AXTree."
+        "Verify the sub-claim against the AXTree and page URL."
     )
 
     try:

@@ -599,6 +599,7 @@ class TaskEvaluator:
                 subject=subject,
                 agent_assertion=assertion,
                 axtree=axtree,
+                page_url=str(events_by_step.get(step, {}).get("url") or ""),
                 client=self.client,
                 model=self.model,
                 execution_date=self.execution_date,
