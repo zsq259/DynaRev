@@ -332,6 +332,11 @@ def run_pipeline(
             )
             current_attempt["step4_passed"] = output.step4.passed
             current_attempt["step4_reason"] = output.step4.reason
+            current_attempt["step4_milestone_checks"] = output.step4.milestone_checks
+            current_attempt["step4_validation_errors"] = output.step4.validation_errors
+            current_attempt["step4_raw_response"] = output.step4.raw_response
+            current_attempt["step4_milestone_review"] = output.step4.milestone_review
+            current_attempt["step4_instruction_review"] = output.step4.instruction_review
             current_attempt["step4_retry_from_step"] = output.step4.retry_from_step
 
             if not output.step4.passed:
@@ -617,6 +622,11 @@ def save_pipeline_report(outputs: List[PipelineOutput], path: str) -> None:
             entry["step4_worth_retry"] = o.step4.worth_retry
             entry["step4_retry_from_step"] = o.step4.retry_from_step
             entry["step4_reason"] = o.step4.reason
+            entry["step4_milestone_checks"] = o.step4.milestone_checks
+            entry["step4_validation_errors"] = o.step4.validation_errors
+            entry["step4_raw_response"] = o.step4.raw_response
+            entry["step4_milestone_review"] = o.step4.milestone_review
+            entry["step4_instruction_review"] = o.step4.instruction_review
         if o.step5:
             entry["step5_passed"] = o.step5.passed
             entry["step5_issues"] = o.step5.issues

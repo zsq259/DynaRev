@@ -115,6 +115,11 @@ class ReviewResult:
     worth_retry: Optional[bool] = None  # only set when passed=False
     retry_from_step: Optional[str] = None  # "step2" or "step3", only when worth_retry=True
     reason: str = ""
+    milestone_checks: List[Dict[str, Any]] = field(default_factory=list)
+    validation_errors: List[str] = field(default_factory=list)
+    raw_response: Dict[str, Any] = field(default_factory=dict)
+    milestone_review: Dict[str, Any] = field(default_factory=dict)
+    instruction_review: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
