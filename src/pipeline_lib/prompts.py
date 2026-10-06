@@ -420,48 +420,201 @@ Output format for retry:
 # ── Step 4: Quality Review ───────────────────────────────────────────────────
 
 STEP4_MILESTONE_SYSTEM = (
-    "You review the milestones that determine when new instructions are sent to an agent. "
-    "Check whether the agent can reach each milestone using the instructions already received, and whether the current page provides enough evidence to recognize it."
+    "You are a quality reviewer for milestones in dynamically revised Web-agent tasks. "
+    "Review every milestone in the provided task and determine whether it is a valid "
+    "trigger for delivering the corresponding user instruction."
 )
 
 STEP4_MILESTONE_USER = """\
-The agent receives i0 first. The milestone attached to i1 is checked before i1 is sent; the same rule applies to each later instruction. When reviewing the milestone for instruction iN, treat only i0 through i(N-1) as instructions the agent has received. Later instructions are included so you can identify requirements that have not yet been sent.
+## Task setup
 
-For each instruction after i0, explain what the earlier instructions require and what its milestone requires. Then check the following:
+This is a Web-agent task in which the user's goal can be revised during execution. \
+The agent first receives an initial instruction i0. Each later instruction i_k is paired \
+with a milestone M_k that determines when i_k should be sent.
 
-1. Does the milestone require a search, comparison, selection, or fallback that the earlier instructions do not ask for or require to complete? List each such requirement in unsupported_requirements, whether it first appears in iN, appears later, or never appears in the instructions. If earlier instructions have not asked the agent to find a fallback, reject a milestone that requires a fallback to already be available.
-2. Does the milestone change any earlier requirement, such as the company, location, rating, quantity, or comparison range? For example, "find a hotel" does not support a milestone requiring a five-star hotel, and "the cheapest Carnival cruise" does not mean the cheapest cruise across all companies. List any added or changed requirement in unsupported_requirements. Reject a milestone if it adds requirements that earlier instructions did not specify.
-3. Can the trigger judge determine from the current page whether the milestone has been reached? The judge does not see the conversation or the agent's final answer. A page displaying the requested search results can provide evidence; statements such as "the user has asked for alternatives" or "the agent is preparing an answer" cannot be verified from that page alone. Set observable to false when the milestone requires evidence unavailable on the current page.
-4. For a conditional revision, would either outcome of the condition allow the revision to be sent? For example, if iN says to change the search when fewer than two results are found, its milestone must allow pages with zero, one, or at least two results. Requiring two results before sending iN would prevent the agent from receiving the revision precisely when it needs to change the search.
+During execution, there is a trigger that checks whether the current browser page \
+satisfies the next milestone. When M_k is reached, i_k is delivered to the agent before \
+its next interaction step.
 
-Example from a generated task (quoted verbatim):
+Therefore, when M_k is checked, the agent has received only i0 through i_{{k-1}}. \
+Together, these earlier instructions define the cumulative goal currently given to the \
+agent. Instruction i_k and all later instructions are still unknown to the agent.
+
+When an earlier instruction replaces a requirement, use the replacement when determining the current goal.
+
+The later instructions are included in this review only so that you can detect whether \
+a milestone improperly depends on requirements that have not yet been sent. Do not use \
+them to justify a milestone.
+
+
+## What is a valid milestone?
+
+A milestone is a semantic stage of the task that determines when the next user \
+instruction is delivered.
+
+For M_k to be valid, successful execution of the cumulative goal defined by i0 through \
+i_{{k-1}} should naturally have to reach the stage described by M_k. The milestone \
+should follow from the goal already given to the agent, rather than from the upcoming \
+instruction i_k.
+
+A milestone should describe task-semantic progress rather than one particular way of \
+interacting with the website. Different successful agents may take different UI paths, \
+visit different intermediate pages, or use different numbers of steps while still \
+reaching the same semantic stage.
+
+The milestone should describe that a semantic stage has been reached, rather than \
+require that the stage produced a particular result. Reaching the relevant search stage \
+must count even when no matching results are found. Do not require a successful match \
+or a minimum result count before delivering the next instruction.
+
+The milestone must also be recognizable by the trigger. The trigger determines whether \
+M_k has been reached using only the current browser page; it does not see the \
+conversation, the agent's reasoning, action history, or final answer.
+
+
+## Review criteria
+
+For each instruction after i0, summarize what the cumulative goal before i_k requires \
+in prior_requirements and what must be true for M_k to trigger in \
+milestone_requirements. Then check the following:
+
+### 1. Prior-goal grounding
+
+Does every substantive requirement in M_k follow from the cumulative goal already \
+specified by i0 through i_{{k-1}}?
+
+Reject M_k if it requires a search, comparison, selection, filtering operation, \
+fallback, or other work that the cumulative goal does not ask for or require to \
+complete. List each such requirement in unsupported_requirements, whether it first \
+appears in i_k, appears in a later instruction, or never appears in the instructions.
+
+Also reject a milestone that adds, narrows, strengthens, or changes an earlier \
+requirement, such as the company, location, rating, quantity, duration, or comparison \
+range. For example, "find a hotel" does not support a milestone requiring a five-star \
+hotel, and "the cheapest Carnival cruise" does not mean the cheapest cruise across all \
+companies.
+
+Judge semantic support rather than exact wording. A milestone may describe an \
+intermediate search, comparison, or selection stage without those exact words appearing \
+in the instructions, as long as reaching that stage is required to accomplish the \
+cumulative goal.
+
+
+### 2. Inevitable semantic stage
+
+Does successful execution of the cumulative goal require reaching the semantic stage \
+described by M_k?
+
+Reject a milestone that describes only one possible way of completing the task. For \
+example, if the task can be completed from the results page, a milestone should \
+not require opening an individual result, because successful execution does not \
+necessarily require that step.
+
+The milestone should capture that the relevant stage of the task has been reached, \
+regardless of the particular outcome produced at that stage. For example, reaching the \
+relevant search-results stage may be valid even if the search returns no matching \
+candidates.
+
+
+### 3. Path independence
+
+Does M_k describe semantic task progress rather than a particular UI path?
+
+Reject a milestone that depends on a specific click, page transition, opened result, \
+or sequence of UI operations when another successful execution of the same cumulative \
+goal could avoid that state.
+
+
+### 4. Page observability
+
+Can the trigger determine from the current browser page alone whether M_k has been \
+reached?
+
+A page displaying the relevant search results or task information can provide evidence. \
+Statements such as "the user has asked for alternatives" or "the agent is preparing an \
+answer" cannot be verified from the current page alone.
+
+Set observable to false when an essential part of the milestone requires evidence that \
+is unavailable from the current page.
+
+
+### 5. Conditional revisions
+
+If i_k is a conditional revision, M_k must not presuppose either outcome of the \
+condition. The same milestone should be able to trigger regardless of which branch of \
+the condition applies.
+
+For example, if i_k says to change the search when fewer than two results are found, \
+M_k must not require at least two results. Otherwise the revision would be blocked \
+precisely when fewer than two results are found.
+
+Likewise, M_k must not require work introduced only by the conditional revision itself. \
+Such work should already be rejected by the prior-goal grounding check.
+
+
+## Examples
+
+### Future-dependency failure
 
 i0: Find the cheapest cruise departing from Los Angeles that lasts at least 8 days.
 
-i1 [conditional_override]: I still want to start with a Los Angeles cruise of at least 8 days. But if the cheapest 8-day Los Angeles sailing is more than $500 above the cheapest Los Angeles sailing of 5 days or less, then a shorter cruise is fine. Compare cheapest against cheapest across all the Los Angeles sailings under each duration — same rule for the whole search, not ship by ship.
+i1 [conditional_override]: I still want to start with a Los Angeles cruise of at least \
+8 days. But if the cheapest 8-day Los Angeles sailing is more than $500 above the \
+cheapest Los Angeles sailing of 5 days or less, then a shorter cruise is fine. Compare \
+cheapest against cheapest across all the Los Angeles sailings under each duration — \
+same rule for the whole search, not ship by ship.
 
 Milestone checked before sending i1:
-A Los Angeles cruise search is underway with at least 8 days and cheapest as the working criteria, and a shorter-sailing fallback is available if the price gap is large enough.
+Search results for Los Angeles cruises lasting at least 8 days are available, and a \
+shorter-sailing fallback is available if the price gap is large enough.
 
-Judgment: Fail. i0 asks for the cheapest Los Angeles cruise lasting at least 8 days. It does not ask for a shorter cruise or a price-gap comparison. The milestone requires a shorter-sailing fallback to be available before i1 introduces that fallback. Reject this milestone because it depends on work not required by the instructions already sent.
+Judgment: Fail. i0 requires finding the cheapest Los Angeles cruise lasting at least \
+8 days. It does not require a shorter-sailing fallback or a price-gap comparison. \
+Those requirements are introduced only by i1, so the milestone depends on work that \
+has not yet been requested.
 
-Negative example: a request is not page evidence (quoted verbatim).
 
-i0: Search the Cleveland Museum of Art's collection for Chinese objects dated 2000 BCE or earlier.
+### Observability failure
+
+i0: Search the Cleveland Museum of Art's collection for Chinese objects dated 2000 BCE \
+or earlier.
+
 i1 [additive]: From the museum's official website, identify exactly five of those objects.
+
 i2 [additive]: For each of the five, give me its name, period, and estimated date range.
 
 Milestone checked before sending i2:
-The search context for Chinese objects from the Cleveland Museum of Art dated 2000 BCE or earlier is established, and the user has asked for exactly five objects from the museum's official website.
+The search context for Chinese objects from the Cleveland Museum of Art dated 2000 BCE \
+or earlier is established, and the user has asked for exactly five objects from the \
+museum's official website.
 
-Judgment: Fail; observable is false. The current page cannot establish that the user has asked for exactly five objects. This milestone states what was requested rather than what the page shows the agent has accomplished. The request itself is supported by i1, so this is an observability problem, not a future dependency.
+Judgment: Fail; observable is false. The requirement to identify exactly five objects \
+is supported by i1, so it is part of the cumulative goal before i2. However, the current \
+browser page cannot establish that the user made this request. This is an observability \
+problem, not a future-dependency problem.
 
-Return one check for every instruction after i0, using this JSON structure:
+## Pass and retry rules
+
+A round passes only if all five checks above are satisfied. The overall review passes \
+only if every round passes.
+
+If the overall review fails, set worth_retry to true if rewriting the instructions or \
+milestones can resolve the problem while retaining the task. Set retry_from_step to \
+"step2" if i0 must change; otherwise use "step3" to rewrite the later instructions or \
+milestones.
+
+If no such rewrite can resolve the problem, set worth_retry to false and \
+retry_from_step to null, and explain why. Leave both retry fields null when the overall \
+review passes.
+
+## Output format
+
+Return one check for every instruction after i0. The observable and passed fields must be JSON booleans (true or false). Use this JSON structure:
 {{
   "milestone_checks": [
     {{
       "instruction_id": "i1",
-      "prior_requirements": "What the preceding instructions ask the agent to do",
+      "prior_requirements": "What the cumulative goal requires before this instruction",
       "milestone_requirements": "What must be true for this milestone to trigger",
       "unsupported_requirements": [],
       "observable": true,
@@ -475,55 +628,215 @@ Return one check for every instruction after i0, using this JSON structure:
   "retry_from_step": null
 }}
 
-In each reason, identify the milestone requirement and the earlier instruction that supports it, or explain what evidence or prior requirement is missing. A round passes only if all four checks above are satisfied. The overall review passes only if every round passes. On failure, set worth_retry to true if rewriting the instructions or milestones can resolve the problem while retaining the task. Set retry_from_step to "step2" if i0 must change; otherwise use "step3" to rewrite the later instructions or milestones. If no such rewrite can resolve the problem, set worth_retry to false and retry_from_step to null, and explain why. Leave both retry fields null when the review passes.
+In each reason, identify the milestone requirement and the earlier goal that supports \
+it, or explain what prior support or page evidence is missing. If the milestone fails \
+because it is not an inevitable semantic stage, depends on a particular execution path, \
+or presupposes an outcome of a conditional revision, state that explicitly.
 
 Instructions and milestones:
 {redesign}
 """
 
 STEP4_INSTRUCTION_SYSTEM = (
-    "You review tasks that have been rewritten as a sequence of user instructions. "
-    "Check whether the user requests are understandable, preserve the original requirements, and introduce any declared replacement without contradictions."
+    "You are a quality reviewer for user instruction sequences in dynamically revised "
+    "Web-agent tasks. Review whether the rewritten instructions preserve the intended "
+    "task while forming a clear, coherent, and natural user interaction."
 )
 
 STEP4_INSTRUCTION_USER = """\
-Read the original task and the rewritten instructions below. The agent receives these instructions in order, so introducing requirements gradually is intentional. Review the instructions as a user interaction; milestone timing is checked separately.
+## Task setup
 
-Check whether the agent can tell what to do after each instruction using the requests received so far. References such as "those options" must have an identifiable meaning in the earlier requests. For comparisons such as "cheaper" or "nearer", the instructions must identify what is being compared and the relevant reference price or location. Flag requirements that cannot be satisfied together unless a later instruction explicitly replaces the earlier one.
+This is a Web-agent task in which the user's goal can be revised during execution. \
+The agent first receives an initial instruction i0, followed by later instructions \
+i1, i2, and so on.
 
-Compare the complete instruction sequence with the original task. Every original requirement should be introduced somewhere in the sequence unless it is replaced by the declared override. Any new requirement must come from that override or be needed to express its condition. For example, rewriting "find a hotel" as "find a five-star hotel" adds a rating requirement unless that change is explicitly declared. A plausible user preference is not sufficient justification for adding it.
+The agent receives these instructions in order. Requirements may be introduced \
+gradually, but the resulting sequence should still resemble a natural user interaction \
+rather than an arbitrary decomposition of the original task.
 
-If there is an override, identify the earlier requirement it replaces and the replacement requirement. Restating the same requirement is not an override. For a conditional override, check that the default requirement appears before the conditional instruction, that the instruction says when to retain it and when to use the replacement, and that the two branches agree with the declared override. Identify the count, price, rating, or time being compared, its threshold, and whether the boundary is inclusive (for example, "fewer than two" differs from "at most two"). The condition must be decidable from information the agent can obtain while carrying out the task. It must select one branch for the whole task rather than a different branch for each item.
+The original task defines the requirements that should ultimately be represented by \
+the instruction sequence. A declared override may intentionally replace one of those \
+requirements with a different requirement.
 
-Negative example: an ambiguous replacement requirement (quoted verbatim).
+Review only the user instructions and their evolution. Milestone timing and milestone \
+validity are checked separately.
+
+
+## What is a valid instruction sequence?
+
+A valid sequence should preserve the intended task while expressing it as a plausible \
+interaction between a user and an agent.
+
+The initial instruction should give the agent a coherent and executable starting goal. \
+Later instructions may add requirements, change preferences, relax earlier requirements, \
+or introduce conditional changes.
+
+A later requirement does not need to have been implied by the earlier instructions. \
+Users are allowed to add information or change their mind during execution. However, \
+the sequence should not look as though a single natural request was mechanically split \
+into multiple turns only to create more revisions.
+
+Each instruction must also be understandable in the context of the instructions already \
+received. Later instructions may refer back to earlier entities or requirements, but \
+those references must have a clear meaning.
+
+
+## Review criteria
+
+### 1. Clarity and executability
+
+Can the agent tell what to do after each instruction using the requests received so far?
+
+The initial instruction should specify a coherent task that the agent can meaningfully \
+begin executing. Later instructions should be understandable in the context established \
+by the earlier ones.
+
+References such as "those options", "that hotel", or "the cheaper one" must have an \
+identifiable meaning. For comparisons such as "cheaper", "nearer", or "higher-rated", \
+the instructions must make clear what is being compared and what reference price, \
+location, rating, or other quantity is relevant.
+
+Flag requirements that cannot be satisfied together unless a later instruction \
+explicitly replaces the earlier one.
+
+
+### 2. Faithfulness to the original task
+
+Compare the complete instruction sequence with the original task.
+
+Every original requirement should be introduced somewhere in the sequence unless it is \
+replaced by the declared override. Preserve important qualifiers, scopes, comparison \
+rules, and boundary conditions rather than weakening them through paraphrasing.
+
+Any new requirement absent from the original task must come from the declared override \
+or be needed to express its condition. A requirement should not be added merely because \
+it is plausible or useful.
+
+For example, rewriting "find a hotel" as "find a five-star hotel" adds a rating \
+requirement unless that change is explicitly declared.
+
+
+### 3. Natural interaction structure
+
+Does the sequence resemble a plausible way for a user's goal to evolve during \
+interaction?
+
+The initial instruction should not feel artificially incomplete merely because \
+requirements have been withheld for later rounds. At the same time, it does not need \
+to include every eventual preference.
+
+Each later instruction should introduce a meaningful addition, change, relaxation, or \
+conditional preference. Reject a revision that is only a trivial fragment of something \
+a user would naturally state together with the preceding instruction.
+
+Closely related requirements that would normally be expressed in the same user turn \
+should not be mechanically separated only to increase the number of revisions.
+
+Do not reject a revision merely because the user could have stated it earlier. Users \
+may naturally add requirements or reconsider preferences during execution. The issue is \
+whether the resulting interaction itself feels artificial or incoherent.
+
+Also consider the sequence as a whole. Later instructions should continue the same \
+underlying task unless they explicitly revise part of it, and the ordering of revisions \
+should make sense as a progression of user intent.
+
+
+### 4. Override validity
+
+If there is an override, identify the earlier requirement it replaces and the \
+replacement requirement. Restating the same requirement is not an override. \
+Check that the requirement being replaced and its replacement match the \
+declared override.
+
+The replacement should revise a requirement that can meaningfully change while \
+preserving the underlying task. It should not ambiguously redefine the task or leave it \
+unclear which requirement is currently active.
+
+For a conditional override, check that the default requirement appears before the \
+conditional instruction, that the instruction clearly states when to retain it and when \
+to use the replacement, and that the two branches agree with the declared override.
+
+Identify the count, price, rating, time, distance, or other quantity being compared, \
+its threshold, and whether the boundary is inclusive when that distinction matters. \
+For example, "fewer than two" differs from "at most two".
+
+The condition must be decidable from information the agent can obtain while carrying \
+out the task. It must select one branch for the whole task rather than a different \
+branch independently for each item.
+
+
+## Examples
+
+### Ambiguous replacement requirement
 
 Original task:
-Find the top-rated hotel in Manhattan, NY, suitable for 4 guests, and identify the fastest public transportation option from the hotel to LGA airport.
+Find the top-rated hotel in Manhattan, NY, suitable for 4 guests, and identify the \
+fastest public transportation option from the hotel to LGA airport.
 
 Instructions:
 i0: Find a hotel in Manhattan, NY that is suitable for 4 guests.
 i1 [additive]: Now narrow the results to the top-rated hotel among those options.
-i2 [override]: Actually, change the hotel rating requirement from top-rated to 5-star reviews. Keep Manhattan and 4 guests.
-i3 [additive]: For that hotel, find the fastest public transportation option from it to LGA airport.
+i2 [override]: Actually, change the hotel rating requirement from top-rated to 5-star \
+reviews. Keep Manhattan and 4 guests.
+i3 [additive]: For that hotel, find the fastest public transportation option from the \
+hotel to LGA airport.
 
-Judgment: Fail. In i2, "5-star reviews" does not specify whether the hotel must have an average review score of 5.0 or at least one five-star review. These select different hotels. A hotel's star classification is also different from its review score. Even when replacing the rating requirement is allowed, the replacement must specify which measure it uses.
+Judgment: Fail. In i2, "5-star reviews" does not specify whether the hotel must have an \
+average review score of 5.0 or at least one five-star review. These select different \
+hotels. A hotel's star classification is also different from its review score. Even \
+when replacing the rating requirement is allowed, the replacement must specify which \
+measure it uses.
 
-Negative example: an original qualifier is omitted (quoted verbatim).
+
+### Omitted original qualifier
 
 Original task:
-Identify five ancient Chinese objects from the Cleveland Museum of Art's collection that dated entirely to 2000 BCE or earlier, as listed on the museum's official website. For each object, provide its name, period, estimated date range, overall dimensions, and current location within the museum. If an object is not currently on display, please indicate that as well.
+Identify five ancient Chinese objects from the Cleveland Museum of Art's collection \
+that dated entirely to 2000 BCE or earlier, as listed on the museum's official website. \
+For each object, provide its name, period, estimated date range, overall dimensions, \
+and current location within the museum. If an object is not currently on display, \
+please indicate that as well.
 
 Instructions:
-i0: Search the Cleveland Museum of Art's collection for Chinese objects dated 2000 BCE or earlier.
+i0: Search the Cleveland Museum of Art's collection for Chinese objects dated 2000 BCE \
+or earlier.
 i1 [additive]: From the museum's official website, identify exactly five of those objects.
 i2 [additive]: For each of the five, give me its name, period, and estimated date range.
-i3 [additive]: Also include each object's overall dimensions and its current location within the museum.
-i4 [additive]: If any object is not currently on display, please note that it is not on display.
-i5 [override]: Actually, change the number to exactly three objects instead of five. Keep the official website, Chinese, 2000 BCE or earlier criteria and all the same details.
+i3 [additive]: Also include each object's overall dimensions and its current location \
+within the museum.
+i4 [additive]: If any object is not currently on display, please note that it is not \
+on display.
+i5 [override]: Actually, change the number to exactly three objects instead of five. \
+Keep the official website, Chinese, 2000 BCE or earlier criteria and all the same details.
 
-Judgment: Fail. The original task requires each object's entire date range to be 2000 BCE or earlier. The rewritten sequence says "dated 2000 BCE or earlier" and never states that the entire range must satisfy the cutoff. For an object dated 2100-1900 BCE, the range crosses that cutoff. The instructions must preserve the original requirement that the entire range qualify; changing the number of objects in i5 does not replace the date requirement.
+Judgment: Fail. The original task requires each object's entire date range to be \
+2000 BCE or earlier. The rewritten sequence says "dated 2000 BCE or earlier" and never \
+states that the entire range must satisfy the cutoff. For an object dated 2100-1900 BCE, \
+the range crosses that cutoff. The instructions must preserve the original requirement \
+that the entire range qualify; changing the number of objects in i5 does not replace \
+the date requirement.
 
-Set passed to true only if these checks all pass. If there is a problem, identify the instruction and its wording in reason, and explain which requirement is missing, added, contradictory, or ambiguous. Return your judgment using this JSON structure:
+
+## Pass and retry rules
+
+Set passed to true only if all applicable checks above pass.
+
+If there is a problem, identify the relevant instruction and wording in reason, and \
+explain whether the problem is ambiguity, contradiction, missing or added requirements, \
+an invalid override, or an unnatural interaction structure.
+
+If the review fails, set worth_retry to true if rewriting the instructions can resolve \
+the problem while retaining the task. Set retry_from_step to "step2" if i0 must change; \
+otherwise use "step3" to rewrite the later instructions.
+
+If no such rewrite can resolve the problem, set worth_retry to false and \
+retry_from_step to null, and explain why. Leave both retry fields null when the review \
+passes.
+
+
+## Output format
+
+Return your judgment using this JSON structure:
 {{
   "passed": true,
   "reason": "A brief explanation, identifying the relevant instructions if there is a problem",
@@ -531,7 +844,8 @@ Set passed to true only if these checks all pass. If there is a problem, identif
   "retry_from_step": null
 }}
 
-On failure, set worth_retry to true if rewriting the instructions can resolve the problem while retaining the task. Set retry_from_step to "step2" if i0 must change; otherwise use "step3" to rewrite the later instructions. If no such rewrite can resolve the problem, set worth_retry to false and retry_from_step to null, and explain why. Leave both retry fields null when the review passes.
+The passed field must be a JSON boolean (true or false).
+
 
 Original task:
 {original_instruction}
