@@ -24,7 +24,7 @@ _PROVIDER_ROUTES = (
     ("gemini",       "GEMINI_BASE_URL",   "GEMINI_API_KEY", True),
     ("qwen",         "QWEN_BASE_URL",     "QWEN_API_KEY", True),
     ("Qwen",         "QWEN_BASE_URL",     "QWEN_API_KEY", True),
-    ("claude",       "OPENAI_BASE_URL",   "OPENAI_API_KEY", True),
+    ("claude",       "CLAUDE_BASE_URL",   "CLAUDE_API_KEY", True),
 )
 
 

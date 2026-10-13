@@ -19,6 +19,9 @@ Usage:
 """
 
 import argparse
+from contextlib import contextmanager
+from functools import wraps
+import fcntl
 import json
 import re
 import sys
@@ -42,6 +45,99 @@ from src.utils.client import get_client, make_client
 from src.utils.log_reader import LogReader
 
 
+@contextmanager
+def evaluation_run_lock(run_dir: Path):
+    """One evaluation coordinator per run, including standalone invocations."""
+    eval_dir = Path(run_dir) / "evaluations"
+    eval_dir.mkdir(parents=True, exist_ok=True)
+    with (eval_dir / ".evaluation.lock").open("a") as handle:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RuntimeError(f"Another evaluator is active for {run_dir}") from exc
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def _exclusive_evaluation(fn):
+    @wraps(fn)
+    def wrapped(run_dir, *args, **kwargs):
+        if not Path(run_dir).exists():
+            raise FileNotFoundError(f"Run directory not found: {run_dir}")
+        with evaluation_run_lock(Path(run_dir)):
+            return fn(run_dir, *args, **kwargs)
+    return wrapped
+
+
+def resolve_execution_date(run_dir: Path, explicit: str = "") -> str:
+    if explicit:
+        return explicit
+    match = re.search(r"(\d{8})", Path(run_dir).name)
+    if not match:
+        return ""
+    date = match.group(1)
+    return f"{date[:4]}-{date[4:6]}-{date[6:8]}"
+
+
+def evaluate_completed_task(
+    *, run_dir: Path, task, evaluator_model: str, execution_date: str = "",
+    eval_retries: int = 2, say: Callable[[str], None] = print,
+) -> str:
+    """Score stable task logs; caller owns the run lock and completion boundary.
+
+    Each invocation owns its client. Never writes the shared run summary.
+    """
+    run_dir = Path(run_dir)
+    eval_file = run_dir / "evaluations" / f"{task.instance_id}.evaluation.json"
+    eval_file.parent.mkdir(parents=True, exist_ok=True)
+    summary = json.loads((run_dir / task.instance_id / "summary.json").read_text(encoding="utf-8"))
+    if summary.get("completion_status") == "task_exception":
+        say(f"EVAL_ERROR | task={task.instance_id} | execution crashed; resume execution first")
+        return "error"
+    if _is_reusable_eval_artifact(eval_file):
+        payload = json.loads(eval_file.read_text(encoding="utf-8"))
+        if payload.get("evaluator_model") != evaluator_model:
+            raise ValueError(
+                f"{task.instance_id}: existing evaluation uses another model; "
+                "use standalone evaluate_logs --force before resuming"
+            )
+        say(f"EVAL_SKIP | task={task.instance_id} | already evaluated")
+        return "skipped"
+    client = None
+
+    def client_factory():
+        nonlocal client
+        if client is None:
+            try:
+                client = make_client(evaluator_model)
+            except Exception as exc:
+                raise EvaluatorError(f"initialization failed: {str(exc)[:200]}") from exc
+        return client
+
+    try:
+        return _evaluate_one_job(
+            run_dir=run_dir, dataset_path=None,
+            task_instances={task.instance_id: task},
+            summary_file=run_dir / task.instance_id / "summary.json",
+            task_id=task.instance_id, eval_file=eval_file,
+            evaluator_model=evaluator_model,
+            execution_date=resolve_execution_date(run_dir, execution_date),
+            eval_retries=eval_retries, client_factory=client_factory, say=say,
+        )
+    finally:
+        if client is not None:
+            client.close()
+
+
+def summarize_evaluations(run_dir: Path, evaluator_model: str) -> None:
+    """Rebuild aggregate from disk; caller owns the run lock."""
+    eval_dir = Path(run_dir) / "evaluations"
+    _write_run_summary(eval_dir, _load_per_task_from_eval_dir(eval_dir), evaluator_model)
+
+
+@_exclusive_evaluation
 def evaluate_run_dir(
     run_dir: Path,
     dataset_path: Optional[str] = None,
@@ -419,7 +515,9 @@ def _write_run_summary(
         "per_task": per_task,
     }
     out = eval_dir / "run_summary.json"
-    out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    temp = out.with_suffix(out.suffix + ".tmp")
+    temp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    temp.replace(out)
     print(f"Run summary: {out}")
     print(
         f"  mean_score={mean_score:.3f}  success_rate={correct_count}/{n}"
@@ -492,13 +590,7 @@ def main():
         task_ids = set(x.strip() for x in args.task_ids.split(",") if x.strip())
 
     # Resolve execution date
-    execution_date = args.execution_date or ""
-    if not execution_date:
-        # Try to extract YYYYMMDD from run dir name
-        match = re.search(r"(\d{8})", Path(args.run_dir).name)
-        if match:
-            d = match.group(1)
-            execution_date = f"{d[:4]}-{d[4:6]}-{d[6:8]}"
+    execution_date = resolve_execution_date(Path(args.run_dir), args.execution_date or "")
 
     error_count = evaluate_run_dir(
         run_dir=args.run_dir,

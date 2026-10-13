@@ -476,6 +476,13 @@ def parse_args() -> argparse.Namespace:
         help="agent reasoning strategy",
     )
 
+    p.add_argument("--evaluate-on-completion", action="store_true",
+                   help="score each finalized task in a separate evaluation pool")
+    p.add_argument("--evaluator-model", default=None)
+    p.add_argument("--eval-workers", type=int, default=1)
+    p.add_argument("--eval-retries", type=int, default=2)
+    p.add_argument("--execution-date", default="",
+                   help="evaluation date YYYY-MM-DD; otherwise inferred from run name")
     p.add_argument("--run-name", default=None)
     p.add_argument("--log-dir", default="logs/runs")
     p.add_argument(
@@ -526,6 +533,13 @@ def parse_args() -> argparse.Namespace:
         raise SystemExit("--dataset-path is required when --dataset-type=dyna_jsonl")
     if args.history_obs_keep < 1:
         raise SystemExit("--history-obs-keep must be >= 1")
+    if args.evaluate_on_completion:
+        if args.dataset_type != "dyna_jsonl":
+            p.error("--evaluate-on-completion requires --dataset-type dyna_jsonl")
+        if not args.evaluator_model:
+            p.error("--evaluate-on-completion requires --evaluator-model")
+        if args.eval_workers < 1 or args.eval_retries < 0:
+            p.error("--eval-workers must be >= 1 and --eval-retries must be >= 0")
     return args
 
 
@@ -601,6 +615,12 @@ def main() -> None:
             with open(run_dir / "health_exclusions.json", "w", encoding="utf-8") as f:
                 json.dump(exclusions, f, ensure_ascii=False, indent=2)
 
+    # Preserve the selected scope for resume backfill, before dropping execution-complete tasks.
+    selected_tasks = list(tasks)
+    if args.evaluate_on_completion:
+        ids = [task.instance_id for task in selected_tasks]
+        if len(ids) != len(set(ids)):
+            raise SystemExit("streaming evaluation requires unique instance_id values")
     completed_ids = collect_completed_instance_ids(run_dir)
     if completed_ids:
         before = len(tasks)
@@ -659,50 +679,60 @@ def main() -> None:
         print(str(run_dir))
         return
 
-    if not tasks:
-        aggregate = build_run_aggregate(run_name, args, load_run_results(run_dir), exclusions)
-        with open(run_dir / "run_summary.json", "w", encoding="utf-8") as f:
-            json.dump(aggregate, f, ensure_ascii=False, indent=2)
-        logger.info("RUN_END | no remaining tasks | run_dir=%s", str(run_dir))
-        print(str(run_dir))
-        return
-
     exec_workers = validate_exec_workers(args, tasks)
     policy_client = trigger_client = None
-    if args.no_task_isolation:
+    if args.no_task_isolation and tasks:
         policy_client = get_client(args.policy_model)
         trigger_client = get_client(args.trigger_model)
 
-    total_tasks = len(tasks)
-    if exec_workers == 1:
-        results = []
-        for idx, task in enumerate(tasks, start=1):
-            results.append(
-                run_task_with_env_retries(
-                    task, args, logger, run_dir, policy_client, trigger_client
-                )
-            )
-            log_run_progress(logger, idx, total_tasks)
-    else:
-        logger.info("EXEC_POOL | workers=%d | tasks=%d", exec_workers, total_tasks)
-
-        def run_one(task):
-            return run_task_with_env_retries(task, args, logger, run_dir, None, None)
-
-        results = run_isolated_task_pool(
-            tasks,
-            exec_workers,
-            run_one,
-            on_progress=lambda done, total: log_run_progress(logger, done, total),
+    evaluator = None
+    eval_errors = 0
+    if args.evaluate_on_completion:
+        from src.agent_lib.evaluation_queue import EvaluationQueue
+        evaluator = EvaluationQueue(
+            run_dir, args.evaluator_model, args.eval_workers, args.eval_retries,
+            logger, execution_date=args.execution_date,
         )
 
-    aggregate = build_run_aggregate(run_name, args, load_run_results(run_dir), exclusions)
+    def run_one(task):
+        result = run_task_with_env_retries(
+            task, args, logger, run_dir, policy_client, trigger_client
+        )
+        if evaluator is not None:
+            # This boundary is after log persistence and the entire retry loop.
+            evaluator.submit(task)
+        return result
 
-    with open(run_dir / "run_summary.json", "w", encoding="utf-8") as f:
-        json.dump(aggregate, f, ensure_ascii=False, indent=2)
+    execution_finished = False
+    try:
+        if evaluator is not None:
+            for task in selected_tasks:
+                if task.instance_id in completed_ids:
+                    evaluator.submit(task)
+        total_tasks = len(tasks)
+        if exec_workers == 1:
+            for idx, task in enumerate(tasks, start=1):
+                run_one(task)
+                log_run_progress(logger, idx, total_tasks)
+        else:
+            logger.info("EXEC_POOL | workers=%d | tasks=%d", exec_workers, total_tasks)
+            run_isolated_task_pool(
+                tasks, exec_workers, run_one,
+                on_progress=lambda done, total: log_run_progress(logger, done, total),
+            )
+        execution_finished = True
+        aggregate = build_run_aggregate(run_name, args, load_run_results(run_dir), exclusions)
+        with open(run_dir / "run_summary.json", "w", encoding="utf-8") as f:
+            json.dump(aggregate, f, ensure_ascii=False, indent=2)
+        logger.info("EXEC_END | run_dir=%s", str(run_dir))
+    finally:
+        if evaluator is not None:
+            eval_errors = evaluator.finish(cancel_pending=not execution_finished)
 
-    logger.info("RUN_END | run_dir=%s", str(run_dir))
+    logger.info("RUN_END | run_dir=%s | eval_errors=%d", str(run_dir), eval_errors)
     print(str(run_dir))
+    if eval_errors:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

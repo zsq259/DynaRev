@@ -48,7 +48,8 @@ class InstructionComposer:
             return cached
 
         structured = build_instruction_block(i0, revisions, fired_revision_ids)
-        if self.policy == "structured":
+        # Keep I0 unchanged; rewrite only after a revision has been injected.
+        if self.policy == "structured" or (self.policy == "rewrite" and not key_tuple):
             snapshot = InstructionSnapshot(
                 text=structured,
                 policy=self.policy,
