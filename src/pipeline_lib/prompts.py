@@ -997,9 +997,7 @@ Output format:
     {{"constraint_id": 1, "instruction_id": "i0", "confidence": "high", "reason": "I0 explicitly mentions ..."}},
     {{"constraint_id": 2, "instruction_id": "i1", "confidence": "medium", "reason": "i1 addresses this through ..."}}
   ],
-  "issues": [
-    "constraint 3 is not clearly covered by any instruction"
-  ],
+  "issues": [],
   "passed": true,
   "retry_from_step": null
 }}
@@ -1255,8 +1253,7 @@ Advantage / cost:
 - Replacement: non-red-eye ↔ red-eye. Condition: price gap.
   keep="Selected flight is non-red-eye", change_to="Selected flight is red-eye",
   quantity=price, operator=">", threshold=500, unit="RMB"
-  Good: "I prefer no red-eye flights. But if non-red-eye flights are at least \
-500 RMB more expensive than the cheapest red-eye, red-eye is acceptable."
+  Good: "I prefer no red-eye flights. But if the cheapest non-red-eye flight is more than 500 RMB more expensive than the cheapest red-eye flight, red-eye is acceptable."
 - Replacement: blue ↔ Space Gray. Condition: price gap.
   keep="Color must be blue", change_to="Color must be Space Gray",
   quantity=price, operator=">", threshold=50, unit="USD"
@@ -1264,11 +1261,10 @@ Advantage / cost:
 the cheapest Space Gray, Space Gray is fine."
 
 Existence:
-- Replacement: must feature Batman ↔ need not. Condition: count.
-  keep="Comics must feature Batman", change_to="Comics need not feature Batman",
+- Replacement: must feature Batman ↔ must feature Superman. Condition: count.
+  keep="Comics must feature Batman", change_to="Comics must feature Superman",
   quantity=count, operator="<", threshold=2
-  Good: "I prefer keeping the Batman requirement. If fewer than two such \
-comics are listed, drop the Batman filter."
+  Good: "I want two comics featuring Batman. If fewer than two are listed, look for two comics featuring Superman instead."
 - Replacement: need five → accept three. Condition: count.
   keep="Find five matching items", change_to="Three matching items are enough",
   quantity=count, operator="<", threshold=5
@@ -1302,14 +1298,14 @@ Full timeline:
   "instructions": [
     {"id": 0, "instruction": "Search Ctrip for flights from Beijing to Shanghai departing the day after tomorrow."},
     {"id": 1, "instruction": "Only keep non-red-eye options.",
-     "milestone": "A Beijing–Shanghai search for the day after tomorrow is underway with non-red-eye as the default.",
+     "milestone": "Search results for Beijing–Shanghai flights departing the day after tomorrow are displayed, including a no-results message if none are available.",
      "type": "additive"},
-    {"id": 2, "instruction": "I prefer no red-eye flights. But if non-red-eye flights are at least 500 RMB more expensive than the cheapest red-eye, red-eye is acceptable.",
-     "milestone": "The flight search is running under the non-red-eye preference, with a priced red-eye fallback if the gap is large enough.",
+    {"id": 2, "instruction": "I prefer no red-eye flights. But if the cheapest non-red-eye flight is more than 500 RMB more expensive than the cheapest red-eye flight, red-eye is acceptable.",
+     "milestone": "The page shows the results under the non-red-eye preference, including a no-results message if none are available.",
      "type": "conditional_override",
      "condition_text": "The cheapest non-red-eye Beijing–Shanghai flight for the day after tomorrow is more than 500 RMB above the cheapest red-eye on Ctrip."},
     {"id": 3, "instruction": "Pick one matching flight and tell me the flight number and price.",
-     "milestone": "A flight on the active red-eye branch has been identified with its number and price.",
+     "milestone": "The page shows the cheapest available price for each flight type, or indicates that one or both flight types are unavailable.",
      "type": "additive"}
   ]
 }

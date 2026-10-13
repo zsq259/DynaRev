@@ -15,19 +15,19 @@ def classify_reason(reason: str) -> List[str]:
     text = (reason or "").lower()
     cats: List[str] = []
     if any(k in text for k in ["completion message", "done message"]):
-        cats.append("done_message 证据相关")
+        cats.append("done_message evidence issues")
     if any(k in text for k in ["no evidence", "cannot be verified", "not present", "not shown", "lacks"]):
-        cats.append("缺少可验证证据")
+        cats.append("Missing verifiable evidence")
     if any(k in text for k in ["filtered", "filter", "list view", "single product"]):
-        cats.append("筛选/列表状态未达成")
+        cats.append("Filter/list state not achieved")
     if any(k in text for k in ["review", "rating", "stars"]):
-        cats.append("评价约束未满足")
+        cats.append("Review constraints not satisfied")
     if any(k in text for k in ["black", "leather", "size", "color", "material", "off-white"]):
-        cats.append("属性约束不匹配")
+        cats.append("Attribute constraints not matched")
     if any(k in text for k in ["cheapest", "price", "lowest"]):
-        cats.append("最便宜/价格约束未证实")
+        cats.append("Lowest-price/price constraints not verified")
     if not cats:
-        cats.append("其他")
+        cats.append("Other")
     return cats
 
 
@@ -133,21 +133,21 @@ def main() -> None:
     pass_b = {tid for tid, e in run_b["eval_by_task"].items() if bool((e.get("result") or {}).get("is_correct", False))}
 
     lines: List[str] = []
-    lines.append("# scene29_plus_retry26_20260408 双基线详细评估对比报告")
+    lines.append("# Detailed Evaluation Comparison Report")
     lines.append("")
-    lines.append("## 1. 运行与评估设置")
+    lines.append("## 1. Execution and Evaluation Settings")
     lines.append("")
-    lines.append(f"- A 组: {args.label_a}")
-    lines.append(f"- B 组: {args.label_b}")
-    lines.append(f"- A 目录: {args.run_a}")
-    lines.append(f"- B 目录: {args.run_b}")
+    lines.append(f"- Group A: {args.label_a}")
+    lines.append(f"- Group B: {args.label_b}")
+    lines.append(f"- Directory A: {args.run_a}")
+    lines.append(f"- Directory B: {args.run_b}")
     lines.append(f"- A evaluator_model: {run_a['summary'].get('evaluator_model', '')}")
     lines.append(f"- B evaluator_model: {run_b['summary'].get('evaluator_model', '')}")
     lines.append("")
 
-    lines.append("## 2. 总体指标对比")
+    lines.append("## 2. Overall Metric Comparison")
     lines.append("")
-    lines.append("| 指标 | A 组 | B 组 | 差值(B-A) |")
+    lines.append("| Metric | Group A | Group B | Difference (B-A) |")
     lines.append("|---|---:|---:|---:|")
     lines.append(f"| task_count | {m_a['task_count']} | {m_b['task_count']} | {m_b['task_count'] - m_a['task_count']} |")
     lines.append(f"| evaluated_count | {m_a['evaluated_count']} | {m_b['evaluated_count']} | {m_b['evaluated_count'] - m_a['evaluated_count']} |")
@@ -158,30 +158,30 @@ def main() -> None:
     lines.append(f"| done_called_count | {m_a['done_called_count']} | {m_b['done_called_count']} | {m_b['done_called_count']-m_a['done_called_count']} |")
     lines.append("")
 
-    lines.append("## 3. 通过任务集合对比")
+    lines.append("## 3. Passed Task Set Comparison")
     lines.append("")
-    lines.append(f"- A 组通过数: {len(pass_a)}")
-    lines.append(f"- B 组通过数: {len(pass_b)}")
-    lines.append(f"- 共同通过: {len(pass_a & pass_b)}")
-    lines.append(f"- 仅 A 通过: {len(pass_a - pass_b)}")
-    lines.append(f"- 仅 B 通过: {len(pass_b - pass_a)}")
-    lines.append(f"- 共同通过任务: {', '.join(sorted(pass_a & pass_b)) if (pass_a & pass_b) else '无'}")
-    lines.append(f"- 仅 A 通过任务: {', '.join(sorted(pass_a - pass_b)) if (pass_a - pass_b) else '无'}")
-    lines.append(f"- 仅 B 通过任务: {', '.join(sorted(pass_b - pass_a)) if (pass_b - pass_a) else '无'}")
+    lines.append(f"- Group APassed tasks: {len(pass_a)}")
+    lines.append(f"- Group BPassed tasks: {len(pass_b)}")
+    lines.append(f"- Passed by both groups: {len(pass_a & pass_b)}")
+    lines.append(f"- Passed only by A: {len(pass_a - pass_b)}")
+    lines.append(f"- Passed only by B: {len(pass_b - pass_a)}")
+    lines.append(f"- Tasks passed by both groups: {', '.join(sorted(pass_a & pass_b)) if (pass_a & pass_b) else 'None'}")
+    lines.append(f"- Tasks passed only by A: {', '.join(sorted(pass_a - pass_b)) if (pass_a - pass_b) else 'None'}")
+    lines.append(f"- Tasks passed only by B: {', '.join(sorted(pass_b - pass_a)) if (pass_b - pass_a) else 'None'}")
     lines.append("")
 
-    lines.append("## 4. score 分布对比")
+    lines.append("## 4. score Distribution Comparison")
     lines.append("")
-    lines.append("| score | A 组计数 | B 组计数 |")
+    lines.append("| score | Group A count | Group B count |")
     lines.append("|---:|---:|---:|")
     all_scores = sorted(set(m_a["score_hist"].keys()) | set(m_b["score_hist"].keys()))
     for s in all_scores:
         lines.append(f"| {s} | {m_a['score_hist'].get(s, 0)} | {m_b['score_hist'].get(s, 0)} |")
     lines.append("")
 
-    lines.append("## 5. 失败原因类别对比（约束级统计）")
+    lines.append("## 5. Failure Category Comparison (Constraint Level)")
     lines.append("")
-    lines.append("| 类别 | A 组 | B 组 | 差值(B-A) |")
+    lines.append("| Category | Group A | Group B | Difference (B-A) |")
     lines.append("|---|---:|---:|---:|")
     all_cats = sorted(set(rs_a["cat"].keys()) | set(rs_b["cat"].keys()))
     for c in all_cats:
@@ -190,9 +190,9 @@ def main() -> None:
         lines.append(f"| {c} | {a} | {b} | {b-a:+d} |")
     lines.append("")
 
-    lines.append("## 6. 失败约束 ID 对比（约束级统计）")
+    lines.append("## 6. Failed Constraint ID Comparison (Constraint Level)")
     lines.append("")
-    lines.append("| constraint_id | A 组 | B 组 | 差值(B-A) |")
+    lines.append("| constraint_id | Group A | Group B | Difference (B-A) |")
     lines.append("|---|---:|---:|---:|")
     all_cids = sorted(set(rs_a["cid"].keys()) | set(rs_b["cid"].keys()))
     for cid in all_cids:
@@ -201,7 +201,7 @@ def main() -> None:
         lines.append(f"| {cid} | {a} | {b} | {b-a:+d} |")
     lines.append("")
 
-    lines.append("## 7. 任务级详细对比")
+    lines.append("## 7. Detailed Task Comparison")
     lines.append("")
     lines.append("| task_id | A_score | B_score | delta(B-A) | A_pass | B_pass | A_steps | B_steps | A_done | B_done |")
     lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
@@ -219,7 +219,7 @@ def main() -> None:
         )
     lines.append("")
 
-    lines.append("## 8. 任务级失败细节（双列）")
+    lines.append("## 8. Task Failure Details (Side by Side)")
     lines.append("")
     for tid in tasks:
         ea = run_a["eval_by_task"].get(tid, {})
@@ -237,21 +237,21 @@ def main() -> None:
         fca = [c for c in (resa.get("constraint_results", []) or []) if not bool(c.get("satisfied", False))]
         fcb = [c for c in (resb.get("constraint_results", []) or []) if not bool(c.get("satisfied", False))]
 
-        lines.append("- A 失败约束:")
+        lines.append("- A Failed constraints:")
         if fca:
             for c in fca:
                 lines.append(f"  - {c.get('constraint_id', 'unknown')}: {short_text(str(c.get('constraint_description', '')), 120)}")
                 lines.append(f"    - reason: {short_text(str(c.get('reason', '')), 220)}")
         else:
-            lines.append("  - 无")
+            lines.append("  - None")
 
-        lines.append("- B 失败约束:")
+        lines.append("- B Failed constraints:")
         if fcb:
             for c in fcb:
                 lines.append(f"  - {c.get('constraint_id', 'unknown')}: {short_text(str(c.get('constraint_description', '')), 120)}")
                 lines.append(f"    - reason: {short_text(str(c.get('reason', '')), 220)}")
         else:
-            lines.append("  - 无")
+            lines.append("  - None")
         lines.append("")
 
     out = Path(args.output)

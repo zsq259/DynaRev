@@ -15,19 +15,19 @@ def classify_reason(reason: str) -> list[str]:
     text = reason.lower()
     cats: list[str] = []
     if any(k in text for k in ["no evidence", "not present", "not shown", "lacks any", "cannot be confirmed"]):
-        cats.append("缺少可验证证据")
+        cats.append("Missing verifiable evidence")
     if any(k in text for k in ["filtered", "filter", "list view", "single product", "product detail page"]):
-        cats.append("筛选/列表状态未达成")
+        cats.append("Filter/list state not achieved")
     if any(k in text for k in ["review", "rating", "stars"]):
-        cats.append("评价约束未满足")
+        cats.append("Review constraints not satisfied")
     if any(k in text for k in ["black", "leather", "size", "color", "material", "off-white"]):
-        cats.append("属性约束不匹配")
+        cats.append("Attribute constraints not matched")
     if any(k in text for k in ["cheapest", "lowest price", "price"]):
-        cats.append("最便宜约束未证实")
+        cats.append("Lowest-price constraint not verified")
     if any(k in text for k in ["completion message", "done message"]):
-        cats.append("done_message 证据不足")
+        cats.append("Insufficient done_message evidence")
     if not cats:
-        cats.append("其他")
+        cats.append("Other")
     return cats
 
 
@@ -145,64 +145,64 @@ def main() -> None:
     fails_sorted = [r for r in rows_sorted if not r["is_correct"]]
 
     lines: list[str] = []
-    lines.append("# 4o 基线详细评估报告")
+    lines.append("# Detailed Evaluation Report")
     lines.append("")
     lines.append(f"- Run: `{run_summary.get('run_name', run_dir.name)}`")
-    lines.append(f"- 目录: `{run_dir}`")
+    lines.append(f"- Directory: `{run_dir}`")
     lines.append(f"- Policy/Trigger/Evaluator: `{run_summary.get('policy_model')}` / `{run_summary.get('trigger_model')}` / `{run_summary.get('evaluator_model')}`")
     lines.append("")
 
-    lines.append("## 1. 总体结果")
+    lines.append("## 1. Overall Results")
     lines.append("")
-    lines.append(f"- 总任务数: {total + len(excluded_rows)}")
-    lines.append(f"- 正式计分任务数: {total}")
-    lines.append(f"- 外部环境/评测器剔除: {len(excluded_rows)}")
-    lines.append(f"- 通过数: {passed}")
-    lines.append(f"- 失败数: {failed}")
-    lines.append(f"- 通过率: {pass_rate:.2f}%")
-    lines.append(f"- 平均 correctness_score: {avg_score:.4f}")
-    lines.append(f"- 平均步数: {run_summary.get('avg_steps', 0.0):.4f}")
+    lines.append(f"- Total tasks: {total + len(excluded_rows)}")
+    lines.append(f"- Scored tasks: {total}")
+    lines.append(f"- Excluded due to environment/evaluator issues: {len(excluded_rows)}")
+    lines.append(f"- Passed tasks: {passed}")
+    lines.append(f"- Failed tasks: {failed}")
+    lines.append(f"- Pass rate: {pass_rate:.2f}%")
+    lines.append(f"- Mean correctness_score: {avg_score:.4f}")
+    lines.append(f"- Mean steps: {run_summary.get('avg_steps', 0.0):.4f}")
     lines.append(f"- done_called_count: {run_summary.get('done_called_count', 0)}")
     lines.append(f"- submitted_count: {run_summary.get('submitted_count', 0)}")
     lines.append("")
 
-    lines.append("## 2. 分数分布")
+    lines.append("## 2. Score Distribution")
     lines.append("")
     for s, c in sorted(score_hist.items(), key=lambda x: x[0]):
-        lines.append(f"- score={s}: {c} 个")
+        lines.append(f"- score={s}: {c} tasks")
     lines.append("")
 
-    lines.append("## 3. 失败原因聚类（约束级）")
+    lines.append("## 3. Failure Categories (Constraint Level)")
     lines.append("")
     for cat, c in reason_category_counter.most_common():
         lines.append(f"- {cat}: {c}")
     lines.append("")
 
-    lines.append("## 4. 失败最多的约束 ID")
+    lines.append("## 4. Most Frequently Failed Constraint IDs")
     lines.append("")
     for cid, c in fail_constraint_counter.most_common():
         lines.append(f"- {cid}: {c}")
     lines.append("")
 
-    lines.append("## 5. 高频失败原因短句（Top 20）")
+    lines.append("## 5. Most Frequent Failure Reasons (Top 20)")
     lines.append("")
     for rs, c in top_fail_reasons.most_common(20):
         lines.append(f"- ({c}) {rs}")
     lines.append("")
 
-    lines.append("## 6. 通过任务")
+    lines.append("## 6. Passed Tasks")
     lines.append("")
     pass_rows = [r for r in rows_sorted if r["is_correct"]]
     if pass_rows:
         for r in pass_rows:
             lines.append(f"- {r['task_id']} | score={r['score']:.2f} | steps={r['steps']} | done_called={r['done_called']}")
     else:
-        lines.append("- 无")
+        lines.append("- None")
     lines.append("")
 
-    lines.append("## 7. 失败任务总览")
+    lines.append("## 7. Failed Task Overview")
     lines.append("")
-    lines.append("| task_id | score | steps | done_called | 失败约束数 | 主要原因类别 |")
+    lines.append("| task_id | score | steps | done_called | Failed constraints | Main failure categories |")
     lines.append("|---|---:|---:|---:|---:|---|")
     for r in fails_sorted:
         lines.append(
@@ -217,7 +217,7 @@ def main() -> None:
         )
     lines.append("")
 
-    lines.append("## 8. 逐任务详细失败原因")
+    lines.append("## 8. Detailed Failure Reasons by Task")
     lines.append("")
     for r in fails_sorted:
         lines.append(f"### {r['task_id']}")
@@ -227,11 +227,11 @@ def main() -> None:
         lines.append(f"- website: {r['website']}")
         lines.append(f"- scene: {r['scene']}")
         for fc in r["failed_constraints"]:
-            lines.append(f"- 约束 `{fc.get('constraint_id', 'unknown')}`: {fc.get('constraint_description', '')}")
-            lines.append(f"  - 原因: {short_reason(str(fc.get('reason', '')), 360)}")
+            lines.append(f"- Constraint `{fc.get('constraint_id', 'unknown')}`: {fc.get('constraint_description', '')}")
+            lines.append(f"  - Reason: {short_reason(str(fc.get('reason', '')), 360)}")
         lines.append("")
 
-    lines.append("## 9. 正式口径剔除（环境/评测器）")
+    lines.append("## 9. Excluded Tasks (Environment/Evaluator)")
     lines.append("")
     if excluded_rows:
         for r in excluded_rows:
@@ -239,7 +239,7 @@ def main() -> None:
                 f"- {r['task_id']} | {r['eval_status']} | website={r['website']}"
             )
     else:
-        lines.append("- 无")
+        lines.append("- None")
     lines.append("")
 
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -6,13 +6,13 @@ A single LLM call per fired revision returns:
 - ``adaptation``: ``"overwrite"`` (back out / re-navigate / restart),
   ``"additive"`` (extend on the same page / result in place), or
   ``"unrelated"`` (ignored the instruction). The label is informational
-  per metrics.md §响应效率.适应方式分类.
+  per metrics.md §Response Efficiency / Adaptation Mode Classification.
 
 The judge sees the new instruction text, a compact rendering of the
 window's actions + URLs, and (optionally) a one-line page label per
 step. We deliberately do NOT feed the answer-side decompose output —
 keeps the response judgment decoupled from final-answer judgments
-(metrics.md §指标互补关系 cross-analysis only works if the two signals
+(metrics.md §Metric Complementarity cross-analysis only works if the two signals
 are independently computed).
 """
 
