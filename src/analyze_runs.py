@@ -4,11 +4,11 @@
 Writes derived tables and markdown under ``reports/``. Per-run scores stay in
 ``logs/runs/<run>/evaluations/``.
 
-Usage:
-    python -m src.analyze_runs matrix --prefix batch0_ --output-csv reports/batch0/run_matrix.csv
-    python -m src.analyze_runs eval-report --run-dir logs/runs/<run> --output reports/batch0/<run>.md
-    python -m src.analyze_runs compare --out-csv reports/batch0/task_matrix.csv
-    python -m src.analyze_runs baseline --run-a DIR --run-b DIR --output reports/batch0/compare.md
+Usage (from the repository root):
+    python -m src.analyze_runs matrix --prefix run_ --output-csv reports/run_matrix.csv
+    python -m src.analyze_runs eval-report --run-dir logs/runs/my_run --output reports/evaluation.md
+    python -m src.analyze_runs compare --runs run_a run_b --out-csv reports/task_matrix.csv
+    python -m src.analyze_runs baseline --run-a logs/runs/run_a --run-b logs/runs/run_b --output reports/compare.md
 """
 
 from __future__ import annotations

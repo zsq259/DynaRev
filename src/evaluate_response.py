@@ -11,12 +11,14 @@ under ``<run_dir>/<task_id>/``. Writes:
   WRA + adaptation per fired revision.
 - ``<run_dir>/evaluations/response_summary.json`` — run-level aggregates.
 
-Usage:
+Usage (from the repository root):
     python -m src.evaluate_response \\
-        --run-dir logs/runs/<run> \\
-        --dataset-path data/dyna-tasks/batches/batch0/tasks.jsonl \\
-        [--task-ids id1,id2] [--judge-model deepseek-v4-flash] [--force]
-        [--no-judge]   # skip LLM-backed WRA + adaptation
+        --run-dir logs/runs/my_run \\
+        --dataset-path path/to/tasks.jsonl \\
+        --judge-model MODEL_NAME
+
+Optional flags: --task-ids id1,id2, --force.
+Use --no-judge instead of --judge-model to compute only deterministic metrics.
 """
 
 from __future__ import annotations

@@ -13,7 +13,7 @@ from openai import OpenAI
 _PROVIDER_ROUTES = (
     ("Qwen/Qwen3.5", "QWEN35_BASE_URL", "QWEN35_API_KEY", False),
     ("qwen/qwen3.5", "QWEN35_BASE_URL", "QWEN35_API_KEY", False),
-    # DashScope-compatible Qwen3.8 (1.sh: QWEN_38_*); keep before generic qwen/.
+    # DashScope-compatible Qwen3.8 uses QWEN_38_*; keep before generic qwen/.
     ("qwen3.8",      "QWEN_38_BASE_URL", "QWEN_38_API_KEY", True),
     ("Qwen3.8",      "QWEN_38_BASE_URL", "QWEN_38_API_KEY", True),
     ("deepseek",     "DEEPSEEK_BASE_URL", "DEEPSEEK_API_KEY", True),
@@ -46,8 +46,8 @@ def _resolve_provider(model: str) -> tuple[str, str]:
                 raise RuntimeError(
                     f"Model '{model}' matches provider prefix '{prefix}' but required "
                     f"env var(s) are not set: {', '.join(missing)}. Refusing to silently "
-                    f"fall back to a different provider. Please source your env config "
-                    f"(e.g. `source 1.sh`) or export the variables before running."
+                    f"fall back to a different provider. Set these environment "
+                    f"variables before running."
                 )
             # The OpenAI SDK requires a non-empty key even when a compatible
             # local endpoint performs no authentication. Avoid falling back to

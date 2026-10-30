@@ -113,8 +113,8 @@ def build_task_universe(a: Dict[str, Any], b: Dict[str, Any]) -> List[str]:
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Generate a detailed baseline comparison markdown report")
-    p.add_argument("--run-a", required=True, help="run dir for baseline A (e.g., p4o)")
-    p.add_argument("--run-b", required=True, help="run dir for baseline B (e.g., pdsr)")
+    p.add_argument("--run-a", required=True, help="run directory for baseline A")
+    p.add_argument("--run-b", required=True, help="run directory for baseline B")
     p.add_argument("--label-a", default="gpt-4o")
     p.add_argument("--label-b", default="deepseek-v4-flash")
     p.add_argument("--output", required=True)

@@ -53,7 +53,7 @@ def read_eval_stats(run_dir: Path) -> Dict[str, float]:
 def main() -> None:
     p = argparse.ArgumentParser(description="Summarize multiple dyna run directories")
     p.add_argument("--log-dir", default="logs/runs")
-    p.add_argument("--prefix", required=True, help="run_name prefix, e.g. scene29_ds_eval")
+    p.add_argument("--prefix", required=True, help="run_name prefix, e.g. run_")
     p.add_argument("--output-csv", default="reports/run_matrix.csv")
     args = p.parse_args()
 

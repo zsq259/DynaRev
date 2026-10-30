@@ -13,9 +13,9 @@ Evaluator-model failures are retried from scratch; if they still fail, no
 evaluation JSON is written, so the next ``evaluate_logs`` run retries them
 without ``--force``.
 
-Usage:
-    python evaluate_logs.py --run-dir logs/runs/my_run --evaluator-model gpt-4o
-    python evaluate_logs.py --run-dir logs/runs/my_run --task-ids task1,task2 --force
+Usage (from the repository root):
+    python -m src.evaluate_logs --run-dir logs/runs/my_run --dataset-path path/to/tasks.jsonl --evaluator-model MODEL_NAME --eval-workers 1
+    python -m src.evaluate_logs --run-dir logs/runs/my_run --dataset-path path/to/tasks.jsonl --evaluator-model MODEL_NAME --eval-workers 1 --task-ids task1,task2 --force
 """
 
 import argparse

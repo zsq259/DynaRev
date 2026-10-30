@@ -234,7 +234,7 @@ def parse_args() -> argparse.Namespace:
         "--runs",
         nargs="+",
         required=True,
-        help="run dir names under --log-dir, e.g. scene29_ds_eval_p4o_v3 scene29_ds_eval_pdsr",
+        help="run dir names under --log-dir, e.g. run_a run_b",
     )
     p.add_argument(
         "--id-mode",

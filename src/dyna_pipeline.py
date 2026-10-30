@@ -10,15 +10,18 @@ Pipeline steps:
   4. Quality review (accept / reject)
   5. Constraint binding (post-processing)
 
-Usage:
+Usage (from the repository root):
   # Process a single task
-  python dyna_pipeline.py --task "Find ..." --website "https://..."
+  python src/dyna_pipeline.py --task "Find ..." --website "https://example.com" --model MODEL_NAME
 
   # Batch process from Online-Mind2Web CSV
-  python dyna_pipeline.py --input-csv dyna_small_dataset_v1.csv
+  python src/dyna_pipeline.py --input-csv path/to/tasks.csv --model MODEL_NAME
+
+  # Construct override tasks
+  python src/dyna_pipeline.py --input-csv path/to/tasks.csv --model MODEL_NAME --instruction-track-mode override --replacement-pairs-path path/to/replacement_pairs.json
 
   # Dry run (step 1 only, no browser)
-  python dyna_pipeline.py --task "Find ..." --website "https://..." --dry-run
+  python src/dyna_pipeline.py --task "Find ..." --website "https://example.com" --model MODEL_NAME --dry-run
 """
 
 import argparse
@@ -488,7 +491,7 @@ def run_pipeline(
 
 
 def load_inputs_from_csv(csv_path: str) -> List[PipelineInput]:
-    """Load pipeline inputs from dyna_small_dataset CSV."""
+    """Load pipeline inputs from a task CSV file."""
     inputs: List[PipelineInput] = []
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -689,8 +692,8 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--replacement-pairs-path",
-        default="data/pipeline/replacement_pairs.json",
-        help="Replacement-pairs JSON path used in override mode",
+        default=None,
+        help="Path to a replacement-pairs JSON file; required in override mode",
     )
     p.add_argument(
         "--override-mode",
@@ -700,7 +703,7 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--switching-conditions-path",
-        default="data/pipeline/switching_conditions.yaml",
+        default=None,
         help="Unused (kept for old scripts). Conditional Step 3b picks count/price/rating/time.",
     )
 
@@ -709,7 +712,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--skip-done", action="store_true",
                    help="Skip tasks already accepted in previous runs (scans log-dir)")
 
-    return p.parse_args()
+    args = p.parse_args()
+    if args.instruction_track_mode == "override" and not args.replacement_pairs_path:
+        p.error("--replacement-pairs-path is required when --instruction-track-mode=override")
+    return args
 
 
 def main() -> None:
