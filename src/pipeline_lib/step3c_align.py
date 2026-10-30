@@ -6,7 +6,7 @@ Conditional: split related constraints into default / alternative groups.
 
 from openai import OpenAI
 
-from utils.llm import llm_json_call
+from ..utils.llm import llm_json_call
 from .models import (
     AlignedConstraint,
     AlignResult,

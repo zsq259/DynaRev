@@ -12,16 +12,16 @@ Pipeline steps:
 
 Usage (from the repository root):
   # Process a single task
-  python src/dyna_pipeline.py --task "Find ..." --website "https://example.com" --model MODEL_NAME
+  python -m src.dyna_pipeline --task "Find ..." --website "https://example.com" --model MODEL_NAME
 
   # Batch process from Online-Mind2Web CSV
-  python src/dyna_pipeline.py --input-csv path/to/tasks.csv --model MODEL_NAME
+  python -m src.dyna_pipeline --input-csv path/to/tasks.csv --model MODEL_NAME
 
   # Construct override tasks
-  python src/dyna_pipeline.py --input-csv path/to/tasks.csv --model MODEL_NAME --instruction-track-mode override --replacement-pairs-path path/to/replacement_pairs.json
+  python -m src.dyna_pipeline --input-csv path/to/tasks.csv --model MODEL_NAME --instruction-track-mode override --replacement-pairs-path path/to/replacement_pairs.json
 
   # Dry run (step 1 only, no browser)
-  python src/dyna_pipeline.py --task "Find ..." --website "https://example.com" --model MODEL_NAME --dry-run
+  python -m src.dyna_pipeline --task "Find ..." --website "https://example.com" --model MODEL_NAME --dry-run
 """
 
 import argparse
@@ -35,16 +35,16 @@ from typing import Any, Dict, List
 
 from openai import OpenAI
 
-from pipeline_lib.export import to_dyna_task_json, write_dyna_jsonl
-from pipeline_lib.homepage import fetch_homepage
-from pipeline_lib.models import PipelineInput, PipelineOutput
-from pipeline_lib.step1_constraints import extract_constraints, should_filter_step1
-from pipeline_lib.step2_i0_design import design_i0
-from pipeline_lib.step3_router import run_step3
-from pipeline_lib.step3c_align import align_related_constraints
-from pipeline_lib.step4_review import review_quality
-from pipeline_lib.step5_binding import bind_constraints
-from utils.client import get_client
+from src.pipeline_lib.export import to_dyna_task_json, write_dyna_jsonl
+from src.pipeline_lib.homepage import fetch_homepage
+from src.pipeline_lib.models import PipelineInput, PipelineOutput
+from src.pipeline_lib.step1_constraints import extract_constraints, should_filter_step1
+from src.pipeline_lib.step2_i0_design import design_i0
+from src.pipeline_lib.step3_router import run_step3
+from src.pipeline_lib.step3c_align import align_related_constraints
+from src.pipeline_lib.step4_review import review_quality
+from src.pipeline_lib.step5_binding import bind_constraints
+from src.utils.client import get_client
 
 
 def _build_override_context(

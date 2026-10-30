@@ -1,10 +1,10 @@
-"""Homepage fetching — delegates to utils.browser.
+"""Homepage fetching — delegates to src.utils.browser.
 
-All browser/stealth config and fetching logic lives in utils.browser.
+All browser/stealth config and fetching logic lives in src.utils.browser.
 This module re-exports for backward compatibility.
 """
 
-from utils.browser import (
+from ..utils.browser import (
 	HomepageResult,
 	RuntimeAccessResult,
 	extract_page_description,

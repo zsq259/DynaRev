@@ -1,7 +1,7 @@
 """Step 4: milestone review, followed by an independent instruction review."""
 import json
 from openai import OpenAI
-from utils.llm import llm_json_call
+from ..utils.llm import llm_json_call
 from .models import MultiturnResult, ReviewResult
 from .prompts import (
     STEP4_MILESTONE_SYSTEM, STEP4_MILESTONE_USER,

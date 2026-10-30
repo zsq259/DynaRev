@@ -4,7 +4,7 @@ import json
 
 from openai import OpenAI
 
-from utils.llm import llm_json_call
+from ..utils.llm import llm_json_call
 from .models import AlignResult, BindingEntry, BindingResult, ConstraintResult, I0Result, MultiturnResult
 from .prompts import STEP5_SYSTEM, STEP5_USER
 

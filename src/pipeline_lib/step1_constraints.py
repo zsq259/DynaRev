@@ -2,7 +2,7 @@
 
 from openai import OpenAI
 
-from utils.llm import llm_json_call
+from ..utils.llm import llm_json_call
 from .models import Constraint, ConstraintResult
 from .prompts import STEP1_SYSTEM, STEP1_USER
 
